@@ -31,9 +31,12 @@ The application will be coded to assume the following set of hardware is used:
 
 ### Application
 
-1.  Install git and clone the Pyccolo repository.
+1.  Install git.
 
         pacman -S git
+
+2.  Clone the Pyccolo repository.
+
         git clone git://github.com/desheffer/pyccolo.git
 
 2.  Install Pyccolo.
