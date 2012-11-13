@@ -1,0 +1,11 @@
+[Unit]
+Description=Pyccolo Console
+After=getty.target
+
+[Service]
+ExecStart=/usr/bin/openvt -s -w -- pyccolo
+KillMode=process
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
