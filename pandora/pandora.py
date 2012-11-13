@@ -15,8 +15,8 @@
 #with this program.  If not, see <http://www.gnu.org/licenses/>.
 ### END LICENSE
 
-from pithos.pandora.blowfish import Blowfish
-from pithos.pandora import pandora_keys
+from blowfish import Blowfish
+import pandora_keys
 import json
 import logging
 import time

@@ -3,7 +3,8 @@
 CONFIG=~/.config/pyccolo.ini
 
 echo "Installing required dependencies..."
-pacman -S python
+pacman --no-confirm -S python
+pacman --no-confirm -S gstreamer0.10-python
 
 echo "Please enter your Pandora account information..."
 read -p "Email: " USERNAME

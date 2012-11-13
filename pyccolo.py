@@ -1,7 +1,7 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 import os
-import ConfigParser
+import configparser
 from pandora import *
 import gst
 import time
@@ -58,7 +58,7 @@ if __name__ == "__main__":
         username = cp.get('User', 'username')
         password = cp.get('User', 'password')
     except:
-        print "Failed to load username and password from configuration file."
+        print("Failed to load username and password from configuration file.")
         exit(1)
 
     pyccolo = Pyccolo(username, password)
@@ -67,7 +67,7 @@ if __name__ == "__main__":
     pyccolo.play()
 
     while True:
-        print "%s - %s by %s" % (pyccolo.is_playing(),
-                                 pyccolo.get_current_song().title,
-                                 pyccolo.get_current_song().artist)
+        print("%s - %s by %s", pyccolo.is_playing(),
+                               pyccolo.get_current_song().title,
+                               pyccolo.get_current_song().artist)
         time.sleep(0.1)
