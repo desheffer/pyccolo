@@ -2,11 +2,15 @@
 
 CONFIG=~/.config/pyccolo.ini
 
+echo "Installing required dependencies..."
+pacman -S python
+
 echo "Please enter your Pandora account information..."
 read -p "Email: " USERNAME
 read -s -p "Password: " PASSWORD
 
 # Setup configuration file.
+mkdir -p `dirname $CONFIG`
 echo "" > $CONFIG
 echo "[User]" >> $CONFIG
 echo "username = $USERNAME" >> $CONFIG
