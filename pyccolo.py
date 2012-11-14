@@ -28,7 +28,7 @@ class Pyccolo:
     def main_iteration(self):
         bus = self.player.get_bus()
         if bus.have_pending():
-            print bus.pop()
+            bus.pop() #TODO
 
     def get_stations(self):
         self.pandora.get_stations()
