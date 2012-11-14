@@ -2,15 +2,30 @@
 
 CONFIG=~/.config/pyccolo.ini
 
+# Install dependencies.
 echo "Installing required dependencies..."
-pacman --needed --noconfirm -S python2 gstreamer0.10-python
+apt-get install -y python-gst0.10 \
+    gstreamer0.10-plugins-base \
+    gstreamer0.10-plugins-good \
+    gstreamer0.10-plugins-bad \
+    alsa-utils
 
+# Enable sound module.
+if [ -z `grep "^snd_bcm2835$" /etc/modules` ]; then
+    echo "snd_bcm2835" >> /etc/modules
+    echo "Enabled snd_bcm2835 module for sound card."
+fi
+
+# Set default sound device.
+amixer cset numid=3 1
+echo "Set audio jack as default sound device."
+
+# Setup configuration file.
 if [ ! -f $CONFIG ]; then
     echo "Please enter your Pandora account information..."
     read -p "Email: " USERNAME
     read -s -p "Password: " PASSWORD
 
-    # Setup configuration file.
     mkdir -p `dirname $CONFIG`
     echo "[User]" >> $CONFIG
     echo "username = $USERNAME" >> $CONFIG
@@ -18,14 +33,11 @@ if [ ! -f $CONFIG ]; then
     echo "Saved account information to $CONFIG."
 fi
 
-# Enable sound module.
-echo "snd-bcm2835" > /etc/modules-load.d/snd-bcm2835.conf
-echo "Enabled snd-bcm2835 module for sound card."
-
 # Configure application to start as a service.
-cp -f extras/pyccolo.service /usr/lib/systemd/system/pyccolo.service
+#cp -f extras/pyccolo.service /usr/lib/systemd/system/pyccolo.service
+#systemctl --system daemon-reload
 #TODO: systemctl enable pyccolo
-echo "Enabled systemd service for Pyccolo."
+#echo "Enabled systemd service for Pyccolo."
 
 echo "Done"
 echo

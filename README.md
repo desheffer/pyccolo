@@ -10,36 +10,38 @@ The application will be coded to assume the following set of hardware is used:
 
 ## Installation
 
-### Operating System
+1. Download Raspbian Image by Hexxeh.
 
-1. Download Arch Linux.
+        wget http://distribution.hexxeh.net/raspbian/raspbian-r3.zip
+        unzip raspbian-r3.zip
 
-        wget http://downloads.raspberrypi.org/images/archlinuxarm/archlinux-hf-2012-09-18/archlinux-hf-2012-09-18.zip
-        unzip archlinux-hf-2012-09-18.zip
+2. Check download is OK.
 
-2.  Write it to an SD card.
+        cd raspbian-r3
+        sha1sum -c raspbian-r3.img.sha1
 
-        dd bs=1M if=archlinux-hf-2012-09-18.img of=/dev/sdX
+3.  Write it to an SD card and then boot.
 
-3.  Boot the Raspberry Pi.
+        dd bs=1M if=raspbian-r3.img of=/dev/sdX
 
-4.  Change the root password (default is 'root').
+4.  Change the root password (default is 'hexxeh').
 
-5.  Check for package updates.
+5.  Check for updates.
 
-        pacman -Syyu
+        apt-get update && apt-get -y dist-upgrade
 
-### Application
+        apt-get install -y ntp fake-hwclock &&
+        dpkg-reconfigure tzdata
 
-1.  Install git.
+        rpi-update
 
-        pacman -S git
+        reboot
 
-2.  Clone the Pyccolo repository.
+6.  Clone the Pyccolo repository.
 
         git clone git://github.com/desheffer/pyccolo.git
 
-2.  Install Pyccolo.
+7.  Install Pyccolo.
 
         cd pyccolo
         ./install.sh
