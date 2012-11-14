@@ -3,7 +3,7 @@
 CONFIG=~/.config/pyccolo.ini
 
 echo "Installing required dependencies..."
-pacman --needed --no-confirm -S python2 pygtk gstreamer0.10-python
+pacman --needed --noconfirm -S python2 gstreamer0.10-python
 
 if [ ! -f $CONFIG ]; then
     echo "Please enter your Pandora account information..."
