@@ -1,10 +1,16 @@
-#!/usr/bin/python3
+#!/usr/bin/python2
 
 import os
-import configparser
-from pandora import *
+import sys
+import tty
+import termios
+import gtk
+import gobject
 import gst
+import dbus
 import time
+import ConfigParser
+from pandora import *
 
 class Pyccolo:
 
@@ -12,43 +18,74 @@ class Pyccolo:
         self.station = None
         self.playlist = None
         self.song = None
-
-        # Initialize Gstreamer.
-        self.player = gst.element_factory_make("playbin2", "player")
-        self.player.props.flags |= 0x80 # GST_PLAY_FLAG_DOWNLOAD (progressive download)
+        self.playing = False
 
         # Initialize Pandora.
         self.pandora = Pandora()
         self.pandora.connect(username, password)
 
+        # Initialize Gstreamer.
+        self.player = gst.element_factory_make("playbin2", "player")
+        self.player.props.flags |= 0x80 # GST_PLAY_FLAG_DOWNLOAD (progressive download)
+        bus = self.player.get_bus()
+        bus.add_signal_watch()
+        bus.connect("message::eos", self.on_gst_eos)
+        bus.connect("message::buffering", self.on_gst_buffering)
+        bus.connect("message::error", self.on_gst_error)
+
     def get_stations(self):
         self.pandora.get_stations()
         return self.pandora.stations
 
-    def get_current_station(self):
-        return self.station
-
     def set_station(self, station_id):
         self.station = self.pandora.get_station_by_id(station_id)
-        self.playlist = self.station.get_playlist()
-        self.pause()
-
-    def get_current_song(self):
-        return self.song
+        self.playlist = None
+        self.next_song()
 
     def is_playing(self):
-        state = self.player.get_state()
-        return state
-        #return state[1] == gst.STATE_PLAYING
+        return self.playing
 
     def play(self):
-        self.song = self.playlist[0]
-        self.player.set_property("uri", self.song.audioUrl)
         self.player.set_state(gst.STATE_PLAYING)
+        self.playing = True
 
     def pause(self):
-        if self.is_playing():
-            self.player.set_state(gst.STATE_PAUSED)
+        self.player.set_state(gst.STATE_PAUSED)
+        self.playing = False
+
+    def next_song(self):
+        self.player.set_state(gst.STATE_NULL)
+        if not self.playlist:
+            self.playlist = self.station.get_playlist()
+        self.song = self.playlist.pop(0)
+        self.player.set_property("uri", self.song.audioUrl)
+        print "'%s' by '%s' from '%s'" % (self.song.title,
+                                          self.song.artist,
+                                          self.song.album)
+        self.play()
+
+    def on_gst_eos(self, bus, message):
+        self.next_song()
+
+    def on_gst_buffering(self, bus, message):
+        #percent = message.parse_buffering()
+        pass
+
+    def on_gst_error(self, bus, message):
+        err, debug = message.parse_error()
+        print "Gstreamer error: %s, %s, %s" % (err, debug, err.code)
+        self.playing = False
+        self.next_song()
+
+def read_char():
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
+    try:
+        tty.setraw(sys.stdin.fileno())
+        ch = sys.stdin.read(1)
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+    return ch
 
 if __name__ == "__main__":
     cp = ConfigParser.ConfigParser()
@@ -58,16 +95,17 @@ if __name__ == "__main__":
         username = cp.get('User', 'username')
         password = cp.get('User', 'password')
     except:
-        print("Failed to load username and password from configuration file.")
+        print "Failed to load username and password from configuration file."
         exit(1)
 
     pyccolo = Pyccolo(username, password)
     stations = pyccolo.get_stations()
     pyccolo.set_station(stations[0].id)
-    pyccolo.play()
 
-    while True:
-        print("%s - %s by %s", pyccolo.is_playing(),
-                               pyccolo.get_current_song().title,
-                               pyccolo.get_current_song().artist)
-        time.sleep(0.1)
+    gtk.gdk.threads_init()
+    while gtk.main_iteration(False):
+        ch = read_char()
+        if ch == 'q':
+            exit(0)
+        elif ch == 'n':
+            pyccolo.next_song()
