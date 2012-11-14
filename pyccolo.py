@@ -5,8 +5,6 @@ import sys
 import time
 import tty
 import termios
-#import gtk
-#import gobject
 import gst
 import ConfigParser
 from pandora import *
@@ -26,11 +24,6 @@ class Pyccolo:
         # Initialize Gstreamer.
         self.player = gst.element_factory_make("playbin2", "player")
         self.player.props.flags |= 0x80 # GST_PLAY_FLAG_DOWNLOAD (progressive download)
-        bus = self.player.get_bus()
-        bus.add_signal_watch()
-        bus.connect("message::eos", self.on_gst_eos)
-        bus.connect("message::buffering", self.on_gst_buffering)
-        bus.connect("message::error", self.on_gst_error)
 
     def main_iteration(self):
         bus = self.player.get_bus()
@@ -109,11 +102,3 @@ if __name__ == "__main__":
     while True:
         pyccolo.main_iteration()
         time.sleep(0.1)
-
-    #gtk.gdk.threads_init()
-    #while gtk.main_iteration(False):
-    #    ch = read_char()
-    #    if ch == 'q':
-    #        exit(0)
-    #    elif ch == 'n':
-    #        pyccolo.next_song()
