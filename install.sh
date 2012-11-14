@@ -3,7 +3,7 @@
 CONFIG=~/.config/pyccolo.ini
 
 echo "Installing required dependencies..."
-pacman --needed --no-confirm -S python2 gstreamer0.10-python
+pacman --needed --no-confirm -S python2 pygtk gstreamer0.10-python
 
 if [ ! -f $CONFIG ]; then
     echo "Please enter your Pandora account information..."
@@ -26,3 +26,7 @@ echo "Enabled snd-bcm2835 module for sound card."
 cp -f extras/pyccolo.service /usr/lib/systemd/system/pyccolo.service
 #TODO: systemctl enable pyccolo
 echo "Enabled systemd service for Pyccolo."
+
+echo "Done"
+echo
+echo "Now reboot."

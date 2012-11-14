@@ -2,13 +2,12 @@
 
 import os
 import sys
+import time
 import tty
 import termios
-import gtk
-import gobject
+#import gtk
+#import gobject
 import gst
-import dbus
-import time
 import ConfigParser
 from pandora import *
 
@@ -32,6 +31,11 @@ class Pyccolo:
         bus.connect("message::eos", self.on_gst_eos)
         bus.connect("message::buffering", self.on_gst_buffering)
         bus.connect("message::error", self.on_gst_error)
+
+    def main_iteration(self):
+        bus = self.player.get_bus()
+        if bus.have_pending():
+            print bus.pop()
 
     def get_stations(self):
         self.pandora.get_stations()
@@ -102,10 +106,14 @@ if __name__ == "__main__":
     stations = pyccolo.get_stations()
     pyccolo.set_station(stations[0].id)
 
-    gtk.gdk.threads_init()
-    while gtk.main_iteration(False):
-        ch = read_char()
-        if ch == 'q':
-            exit(0)
-        elif ch == 'n':
-            pyccolo.next_song()
+    while True:
+        pyccolo.main_iteration()
+        time.sleep(0.1)
+
+    #gtk.gdk.threads_init()
+    #while gtk.main_iteration(False):
+    #    ch = read_char()
+    #    if ch == 'q':
+    #        exit(0)
+    #    elif ch == 'n':
+    #        pyccolo.next_song()
