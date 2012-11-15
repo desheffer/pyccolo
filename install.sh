@@ -1,14 +1,17 @@
 #!/bin/bash
 
+cd `dirname $0`
+
 CONFIG=~/.config/pyccolo.ini
 
 # Install dependencies.
 echo "Installing required dependencies..."
-apt-get install -y python-gst0.10 \
+apt-get install -y console-tools \
+    alsa-utils \
+    python-gst0.10 \
     gstreamer0.10-plugins-base \
     gstreamer0.10-plugins-good \
-    gstreamer0.10-plugins-bad \
-    alsa-utils
+    gstreamer0.10-plugins-bad
 
 # Enable sound module.
 if [ -z `grep "^snd_bcm2835$" /etc/modules` ]; then
@@ -34,11 +37,12 @@ if [ ! -f $CONFIG ]; then
     echo "Saved account information to $CONFIG."
 fi
 
-# Configure application to start as a service.
-#cp -f extras/pyccolo.service /usr/lib/systemd/system/pyccolo.service
-#systemctl --system daemon-reload
-#TODO: systemctl enable pyccolo
-#echo "Enabled systemd service for Pyccolo."
+# Configure application to start on boot.
+rm -f /etc/init.d/pyccolo
+cp extras/etc__init.d__pyccolo /etc/init.d/pyccolo
+rm -f /etc/rcS.d/S16pyccolo
+ln -s /etc/init.d/pyccolo /etc/rcS.d/S16pyccolo
+echo "Installed pyccolo service."
 
 echo "Done"
 echo

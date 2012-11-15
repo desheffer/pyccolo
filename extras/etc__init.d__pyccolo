@@ -1,0 +1,64 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          pyccolo
+# Required-Start:
+# Required-Stop:
+# Default-Start:     S
+# Default-Stop:
+### END INIT INFO
+
+. /lib/init/vars.sh
+. /lib/lsb/init-functions
+
+NAME=pyccolo
+
+APP=/root/pyccolo/pyccolo.py
+DAEMON=/usr/bin/openvt
+PARAMS="-s -w -- $APP"
+
+PIDDIR=/var/run/pyccolo
+PIDFILE=$PIDDIR/pid
+
+do_start () {
+	if [ ! -d $PIDDIR ]; then
+		mkdir -p $PIDDIR
+	fi
+
+	if [ -e $PIDFILE ]; then
+		if $0 status > /dev/null ; then
+			return
+		else
+			rm -f $PIDFILE
+		fi
+	fi
+
+	start-stop-daemon --start --quiet --background \
+		--pidfile $PIDFILE --exec $DAEMON -- $PARAMS
+}
+
+do_stop () {
+	start-stop-daemon --stop --retry 5 --quiet --oknodo \
+		--pidfile $PIDFILE
+	rm -f $PIDFILE
+}
+
+case "$1" in
+start)
+	do_start
+	;;
+restart|reload|force-reload)
+	do_stop
+	do_start
+	exit 3
+	;;
+stop)
+	do_stop
+	;;
+status)
+	status_of_proc -p $PIDFILE $DAEMON $NAME && exit 0 || exit $?
+	;;
+*)
+	echo "Usage: $NAME [start|stop|status|restart|reload|force-reload]" >&2
+	exit 3
+	;;
+esac
