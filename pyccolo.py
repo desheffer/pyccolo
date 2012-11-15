@@ -88,16 +88,21 @@ class Pyccolo:
         self.timer = None
 
         self.player.set_state(gst.STATE_NULL)
+
+        station = self.station
         if not self.playlist:
             self.playlist = self.station.get_playlist()
+        if station != self.station:
+            return True
+
         self.song = self.playlist.pop(0)
         self.player.set_property("uri", self.song.audioUrl)
 
         self.play()
 
-        print "'%s' by '%s' from '%s'" % (self.song.title,
-                                          self.song.artist,
-                                          self.song.album)
+        print "> '%s' by '%s' from '%s'" % (self.song.title,
+                                            self.song.artist,
+                                            self.song.album)
 
         return True
 
@@ -160,6 +165,11 @@ if __name__ == "__main__":
         ch = read_char()
         if ch == 'q':
             exit(0)
+        elif ch == 'p':
+            if pyccolo.is_playing():
+                pyccolo.pause()
+            else:
+                pyccolo.play()
         elif ch == 'n':
             pyccolo.next_song()
         elif ch == 'u':
