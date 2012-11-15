@@ -46,7 +46,7 @@ echo
 rm -f /etc/init.d/pyccolo
 cp extras/etc__init.d__pyccolo /etc/init.d/pyccolo
 rm -f /etc/rcS.d/*pyccolo
-ln -s /etc/init.d/pyccolo /etc/rcS.d/S16pyccolo
+ln -s /etc/init.d/pyccolo /etc/rcS.d/S99pyccolo
 echo "Installed pyccolo service."
 
 echo

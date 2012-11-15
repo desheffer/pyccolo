@@ -8,9 +8,9 @@ import termios
 import gst
 import ConfigParser
 from pandora import *
+import urllib2
 
 class Pyccolo:
-
     def __init__(self, username, password):
         self.station = None
         self.playlist = None
@@ -84,6 +84,14 @@ def read_char():
         termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
     return ch
 
+def has_network():
+    try:
+        response = urllib2.urlopen('http://pandora.com')
+        return True
+    except urllib2.URLError as err:
+        pass
+    return False
+
 if __name__ == "__main__":
     cp = ConfigParser.ConfigParser()
     cp.read(os.path.expanduser("/etc/pyccolo/pyccolo.conf"))
@@ -94,6 +102,9 @@ if __name__ == "__main__":
     except:
         print "Failed to load username and password from configuration file."
         exit(1)
+
+    while has_network() == False:
+        time.sleep(1);
 
     pyccolo = Pyccolo(username, password)
     stations = pyccolo.get_stations()
