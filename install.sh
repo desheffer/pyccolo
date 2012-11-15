@@ -15,17 +15,20 @@ apt-get install -y console-tools \
 
 # Enable sound module.
 if [ -z `grep "^snd_bcm2835$" /etc/modules` ]; then
+    echo
     echo "snd_bcm2835" >> /etc/modules
     echo "Enabled snd_bcm2835 module for sound card."
 fi
 
 # Set default sound device.
+echo
 amixer cset numid=3 1
 amixer set PCM -- 0
-echo "Set audio jack as default sound device."
+echo "Set headphone jack as the default sound device."
 
 # Setup configuration file.
 if [ ! -f $CONFIG ]; then
+    echo
     echo "Please enter your Pandora account information..."
     read -p "Email: " USERNAME
     read -s -p "Password: " PASSWORD
@@ -38,12 +41,13 @@ if [ ! -f $CONFIG ]; then
 fi
 
 # Configure application to start on boot.
+echo
 rm -f /etc/init.d/pyccolo
 cp extras/etc__init.d__pyccolo /etc/init.d/pyccolo
 rm -f /etc/rcS.d/*pyccolo
 ln -s /etc/init.d/pyccolo /etc/rcS.d/S16pyccolo
 echo "Installed pyccolo service."
 
-echo "Done"
 echo
+echo "Done."
 echo "Now reboot."
