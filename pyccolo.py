@@ -21,7 +21,6 @@ class Pyccolo:
         self.playlist = None
         self.song = None
         self.playing = False
-        self.timer = None
 
         # Initialize Pandora.
         self.pandora = Pandora()
@@ -37,29 +36,33 @@ class Pyccolo:
         bus.connect("message::error", self.on_gst_error)
 
     def get_stations(self):
+        """Get the list of stations."""
+
         self.pandora.get_stations()
         return self.pandora.stations
 
     def set_station(self, station_id):
+        """Set the current station."""
+
         self.pause()
 
+        # Change the station and the song.
         self.station = self.pandora.get_station_by_id(station_id)
         self.playlist = None
-
-        if self.timer:
-            self.timer.cancel()
-        self.timer = threading.Timer(0.5, self.next_song)
-        self.timer.start()
+        threading.Thread(target=self.next_song).start()
 
         print "Station: %s" % self.station.name
 
         return True
 
     def tune_station(self, delta):
+        """Change the station in one direction, like a tuning dial."""
+
         stations = self.pandora.stations
         if not stations:
             return False
 
+        # Tune in the direction given.
         curr = stations.index(self.station) + delta
         if curr < 0:
             curr = len(stations) - 1
@@ -69,35 +72,41 @@ class Pyccolo:
         return self.set_station(stations[curr].id)
 
     def is_playing(self):
+        """True if music is playing."""
+
         return self.playing
 
     def play(self):
+        """Play the currently paused music track."""
+
         self.player.set_state(gst.STATE_PLAYING)
         self.playing = True
         return True
 
     def pause(self):
+        """Pause the currently playing music track."""
+
         if self.playing:
             self.player.set_state(gst.STATE_PAUSED)
         self.playing = False
         return True
 
     def next_song(self):
-        if self.timer:
-            self.timer.cancel()
-        self.timer = None
+        """Skip the current music track."""
 
         self.player.set_state(gst.STATE_NULL)
 
-        station = self.station
         if not self.playlist:
+            station = self.station
             self.playlist = self.station.get_playlist()
-        if station != self.station:
-            return True
 
+            # Break if the station was changed while loading.
+            if station != self.station:
+                return True
+
+        # Play the next song.
         self.song = self.playlist.pop(0)
         self.player.set_property("uri", self.song.audioUrl)
-
         self.play()
 
         print "> '%s' by '%s' from '%s'" % (self.song.title,
@@ -107,19 +116,27 @@ class Pyccolo:
         return True
 
     def on_gst_eos(self, bus, message):
+        """Begin the next track after the current track has completed."""
+
         self.next_song()
 
     def on_gst_buffering(self, bus, message):
+        """Display Gstreamer buffering progress to the user."""
+
         #percent = message.parse_buffering()
         pass
 
     def on_gst_error(self, bus, message):
+        """Display Gstreamer errors to the user."""
+
         self.playing = False
         err, debug = message.parse_error()
         print "Gstreamer Error: %s, %s, %s" % (err, debug, err.code)
         self.next_song()
 
 def read_char():
+    """Read in a single character from the console."""
+
     fd = sys.stdin.fileno()
     old_settings = termios.tcgetattr(fd)
     try:
@@ -130,6 +147,8 @@ def read_char():
     return ch
 
 def has_network():
+    """Determine if the Pandora website can be reached."""
+
     try:
         response = urllib2.urlopen('http://pandora.com')
         return True
@@ -138,9 +157,9 @@ def has_network():
     return False
 
 if __name__ == "__main__":
+    # Read in configuration details.
     cp = ConfigParser.ConfigParser()
     cp.read("/etc/pyccolo/pyccolo.conf")
-
     try:
         username = cp.get('User', 'username')
         password = cp.get('User', 'password')
@@ -148,19 +167,22 @@ if __name__ == "__main__":
         print "Failed to load username and password from configuration file."
         exit(1)
 
-    # TODO: Something better?
-    while has_network() == False:
+    # Wait until a network connection is available.
+    while not has_network():
         time.sleep(1);
 
+    # Initialize radio.
     pyccolo = Pyccolo(username, password)
     stations = pyccolo.get_stations()
     pyccolo.set_station(stations[0].id)
 
+    # Start main loop in a separate thread.
     gobject.threads_init()
     g_loop = threading.Thread(target=gobject.MainLoop().run)
     g_loop.daemon = True
     g_loop.start()
 
+    # Handle user input.
     while True:
         ch = read_char()
         if ch == 'q':
