@@ -18,6 +18,7 @@ fi
 
 # Set default sound device.
 amixer cset numid=3 1
+amixer set PCM -- 0
 echo "Set audio jack as default sound device."
 
 # Setup configuration file.
