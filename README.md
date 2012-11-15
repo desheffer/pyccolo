@@ -1,8 +1,7 @@
 Pyccolo
 =======
 
-Small Python application for playing Pandora radio on a Raspberry Pi running
-Arch Linux.
+Small Python application for playing Pandora radio on a Raspberry Pi.
 
 The application will be coded to assume the following set of hardware is used:
 -   Hacked Keyboard?
@@ -10,7 +9,7 @@ The application will be coded to assume the following set of hardware is used:
 
 ## Installation
 
-1. Download Raspbian Image by Hexxeh.
+1. Download the Raspbian Image by Hexxeh.
 
         wget http://distribution.hexxeh.net/raspbian/raspbian-r3.zip
         unzip raspbian-r3.zip
