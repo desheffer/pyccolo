@@ -41,15 +41,17 @@ class Pyccolo:
         return self.pandora.stations
 
     def set_station(self, station_id):
+        self.pause()
+
         self.station = self.pandora.get_station_by_id(station_id)
         self.playlist = None
-        print "Station: %s" % self.station.name
 
-        self.pause()
         if self.timer:
             self.timer.cancel()
         self.timer = threading.Timer(0.5, self.next_song)
         self.timer.start()
+
+        print "Station: %s" % self.station.name
 
         return True
 
@@ -75,7 +77,8 @@ class Pyccolo:
         return True
 
     def pause(self):
-        self.player.set_state(gst.STATE_PAUSED)
+        if self.playing:
+            self.player.set_state(gst.STATE_PAUSED)
         self.playing = False
         return True
 
@@ -89,6 +92,7 @@ class Pyccolo:
             self.playlist = self.station.get_playlist()
         self.song = self.playlist.pop(0)
         self.player.set_property("uri", self.song.audioUrl)
+
         self.play()
 
         print "'%s' by '%s' from '%s'" % (self.song.title,
@@ -105,16 +109,16 @@ class Pyccolo:
         pass
 
     def on_gst_error(self, bus, message):
+        self.playing = False
         err, debug = message.parse_error()
         print "Gstreamer Error: %s, %s, %s" % (err, debug, err.code)
-        self.playing = False
         self.next_song()
 
 def read_char():
     fd = sys.stdin.fileno()
     old_settings = termios.tcgetattr(fd)
     try:
-        tty.setraw(sys.stdin.fileno())
+        tty.setcbreak(sys.stdin.fileno())
         ch = sys.stdin.read(1)
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
