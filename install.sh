@@ -40,7 +40,7 @@ fi
 # Configure application to start on boot.
 rm -f /etc/init.d/pyccolo
 cp extras/etc__init.d__pyccolo /etc/init.d/pyccolo
-rm -f /etc/rcS.d/S16pyccolo
+rm -f /etc/rcS.d/*pyccolo
 ln -s /etc/init.d/pyccolo /etc/rcS.d/S16pyccolo
 echo "Installed pyccolo service."
 
