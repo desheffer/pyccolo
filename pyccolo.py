@@ -32,12 +32,15 @@ import threading
 
 from pandora import *
 
+CONF_FILE = "/etc/pyccolo/pyccolo.conf"
+
 class Pyccolo:
     def __init__(self, username, password):
         self.station = None
-        self.playlist = None
+        self.playlists = dict()
         self.song = None
         self.playing = False
+        self.timer = None
 
         # Initialize Pandora.
         self.pandora = Pandora()
@@ -58,6 +61,13 @@ class Pyccolo:
         self.pandora.get_stations()
         return self.pandora.stations
 
+    def get_station_id(self):
+        """Get the id of the current station."""
+
+        if not self.station:
+            return None
+        return self.station.id
+
     def set_station(self, station_id):
         """Set the current station."""
 
@@ -65,8 +75,11 @@ class Pyccolo:
 
         # Change the station and the song.
         self.station = self.pandora.get_station_by_id(station_id)
-        self.playlist = None
-        threading.Thread(target=self.next_song).start()
+
+        if self.timer:
+            self.timer.cancel()
+        self.timer = threading.Timer(0.25, self.next_song)
+        self.timer.start()
 
         print "Station: %s" % self.station.name
 
@@ -105,30 +118,39 @@ class Pyccolo:
 
         if self.playing:
             self.player.set_state(gst.STATE_PAUSED)
-        self.playing = False
+            self.playing = False
         return True
 
     def next_song(self):
         """Skip the current music track."""
 
+        if self.timer:
+            self.timer.cancel()
+            self.timer = None
+
+        # Get current station settings.
+        station = self.station
+        playlist = None
+        if station.id in self.playlists:
+            playlist = self.playlists[station.id]
+
         self.player.set_state(gst.STATE_NULL)
 
-        if not self.playlist:
-            station = self.station
-            self.playlist = self.station.get_playlist()
+        # Fill the playlist.
+        if not playlist:
+            playlist = station.get_playlist()
 
-            # Break if the station was changed while loading.
-            if station != self.station:
-                return True
+        # Play the next song in the playlist.
+        if station == self.station:
+            self.song = playlist.pop(0)
+            self.player.set_property("uri", self.song.audioUrl)
+            self.play()
 
-        # Play the next song.
-        self.song = self.playlist.pop(0)
-        self.player.set_property("uri", self.song.audioUrl)
-        self.play()
+            print "> '%s' by '%s' from '%s'" % (self.song.title,
+                                                self.song.artist,
+                                                self.song.album)
 
-        print "> '%s' by '%s' from '%s'" % (self.song.title,
-                                            self.song.artist,
-                                            self.song.album)
+        self.playlists[station.id] = playlist
 
         return True
 
@@ -167,7 +189,7 @@ def has_network():
     """Determine if the Pandora website can be reached."""
 
     try:
-        response = urllib2.urlopen('http://pandora.com')
+        response = urllib2.urlopen("http://pandora.com")
         return True
     except urllib2.URLError as err:
         pass
@@ -176,7 +198,7 @@ def has_network():
 if __name__ == "__main__":
     # Read in configuration details.
     cp = ConfigParser.ConfigParser()
-    cp.read("/etc/pyccolo/pyccolo.conf")
+    cp.read(CONF_FILE)
     try:
         username = cp.get('User', 'username')
         password = cp.get('User', 'password')
@@ -191,7 +213,13 @@ if __name__ == "__main__":
     # Initialize radio.
     pyccolo = Pyccolo(username, password)
     stations = pyccolo.get_stations()
-    pyccolo.set_station(stations[0].id)
+
+    # Attempt to restore last station.
+    try:
+        station_id = cp.get('Station', 'station_id')
+    except:
+        station_id = stations[0].id
+    pyccolo.set_station(station_id)
 
     # Start main loop in a separate thread.
     gobject.threads_init()
@@ -203,6 +231,17 @@ if __name__ == "__main__":
     while True:
         ch = read_char()
         if ch == 'q':
+            # Save current station id to restore on the next run.
+            try:
+                if not cp.has_section('Station'):
+                    cp.add_section('Station')
+                cp.set('Station', 'station_id', pyccolo.get_station_id())
+
+                with open(CONF_FILE, 'wb') as config:
+                    cp.write(config)
+            except:
+                pass
+
             exit(0)
         elif ch == 'p':
             if pyccolo.is_playing():
