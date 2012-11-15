@@ -2,7 +2,7 @@
 
 cd `dirname $0`
 
-CONFIG=~/.config/pyccolo.ini
+CONFIG=/etc/pyccolo/pyccolo.conf
 
 # Install dependencies.
 echo "Installing required dependencies..."

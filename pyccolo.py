@@ -86,7 +86,7 @@ def read_char():
 
 if __name__ == "__main__":
     cp = ConfigParser.ConfigParser()
-    cp.read(os.path.expanduser("~/.config/pyccolo.ini"))
+    cp.read(os.path.expanduser("/etc/pyccolo/pyccolo.conf"))
 
     try:
         username = cp.get('User', 'username')
