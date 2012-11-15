@@ -22,8 +22,8 @@ fi
 
 # Set default sound device.
 echo
-amixer cset numid=3 1
-amixer set PCM -- 0
+amixer cset numid=3 1 >/dev/null
+amixer set PCM -- 0 >/dev/null
 echo "Set headphone jack as the default sound device."
 
 # Setup configuration file.
@@ -32,6 +32,7 @@ if [ ! -f $CONFIG ]; then
     echo "Please enter your Pandora account information..."
     read -p "Email: " USERNAME
     read -s -p "Password: " PASSWORD
+    echo
 
     mkdir -p `dirname $CONFIG`
     echo "[User]" >> $CONFIG
