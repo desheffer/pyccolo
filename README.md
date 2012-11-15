@@ -14,10 +14,10 @@ The application will be coded to assume the following set of hardware is used:
 
         wget http://distribution.hexxeh.net/raspbian/raspbian-r3.zip
         unzip raspbian-r3.zip
-
-2. Check download is OK.
-
         cd raspbian-r3
+
+2. Check the file integrity.
+
         sha1sum -c raspbian-r3.img.sha1
 
 3.  Write it to an SD card and then boot.
@@ -37,11 +37,11 @@ The application will be coded to assume the following set of hardware is used:
 
         reboot
 
-6.  Clone the Pyccolo repository.
+6.  Clone the Pyccolo repository and install.
 
         git clone git://github.com/desheffer/pyccolo.git
 
-7.  Install Pyccolo.
-
         cd pyccolo
         ./install.sh
+
+        reboot
