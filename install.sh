@@ -1,5 +1,14 @@
 #!/bin/bash
 
+# Ensure this is a Raspberry Pi and not something else.
+if [ ! -f /usr/bin/rpi-update -o ! -f /boot/config.txt ]; then
+    echo "This device does not appear to be a Raspberry Pi."
+    read -p "Are you sure you want to continue [y/N]? " CONFIRM
+    if [ $CONFIRM != 'y' -a $CONFIRM != 'Y' ]; then
+        exit
+    fi
+fi
+
 cd `dirname $0`
 
 CONFIG=/etc/pyccolo/pyccolo.conf
