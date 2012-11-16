@@ -4,6 +4,9 @@
 if [ ! -f /usr/bin/rpi-update -o ! -f /boot/config.txt ]; then
     echo "This device does not appear to be a Raspberry Pi."
     read -p "Are you sure you want to continue [y/N]? " CONFIRM
+    if [ -z $CONFIRM ]; then
+        CONFIRM='n'
+    fi
     if [ $CONFIRM != 'y' -a $CONFIRM != 'Y' ]; then
         exit
     fi
