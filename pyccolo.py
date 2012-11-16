@@ -216,10 +216,10 @@ if __name__ == "__main__":
 
     # Attempt to restore last station.
     try:
-        station_id = cp.get('Station', 'station_id')
+        last_station_id = cp.get('Station', 'station_id')
     except:
-        station_id = stations[0].id
-    pyccolo.set_station(station_id)
+        last_station_id = stations[0].id
+    pyccolo.set_station(last_station_id)
 
     # Start main loop in a separate thread.
     gobject.threads_init()
@@ -227,21 +227,10 @@ if __name__ == "__main__":
     g_loop.daemon = True
     g_loop.start()
 
-    # Handle user input.
     while True:
+        # Handle user input.
         ch = read_char()
         if ch == 'q':
-            # Save current station id to restore on the next run.
-            try:
-                if not cp.has_section('Station'):
-                    cp.add_section('Station')
-                cp.set('Station', 'station_id', pyccolo.get_station_id())
-
-                with open(CONF_FILE, 'wb') as config:
-                    cp.write(config)
-            except:
-                pass
-
             exit(0)
         elif ch == 'p':
             if pyccolo.is_playing():
@@ -254,3 +243,17 @@ if __name__ == "__main__":
             pyccolo.tune_station(1)
         elif ch == 'd':
             pyccolo.tune_station(-1)
+
+        # Save current station id to restore on the next run.
+        station_id = pyccolo.get_station_id()
+        if station_id != last_station_id:
+            last_station_id = station_id
+            try:
+                if not cp.has_section('Station'):
+                    cp.add_section('Station')
+                cp.set('Station', 'station_id', last_station_id)
+
+                with open(CONF_FILE, 'wb') as config:
+                    cp.write(config)
+            except:
+                pass
