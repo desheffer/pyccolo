@@ -19,28 +19,40 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import ConfigParser
 import time
-import sys
-import tty
-import termios
 import urllib2
 
 import gobject
 import pygst
-pygst.require('0.10')
+pygst.require("0.10")
 import gst
 import threading
+
+import RPi.GPIO as GPIO
 
 from pandora import *
 
 CONF_FILE = "/etc/pyccolo/pyccolo.conf"
+PIN_CCW = 23
+PIN_CW = 24
+PIN_CLICK = 25
 
 class Pyccolo:
-    def __init__(self, username, password):
+    def __init__(self):
         self.station = None
         self.playlists = dict()
         self.song = None
         self.playing = False
         self.timer = None
+
+        # Read in configuration details.
+        self.config = ConfigParser.ConfigParser()
+        self.config.read(CONF_FILE)
+        try:
+            username = self.config.get("User", "username")
+            password = self.config.get("User", "password")
+        except:
+            print "Failed to load username and password from configuration file."
+            exit(1)
 
         # Initialize Pandora.
         self.pandora = Pandora()
@@ -55,11 +67,13 @@ class Pyccolo:
         bus.connect("message::buffering", self.on_gst_buffering)
         bus.connect("message::error", self.on_gst_error)
 
-    def get_stations(self):
-        """Get the list of stations."""
-
+        # Attempt to restore last station.
         self.pandora.get_stations()
-        return self.pandora.stations
+        try:
+            last_station_id = self.config.get("Station", "station_id")
+        except:
+            last_station_id = stations[0].id
+        self.set_station(last_station_id)
 
     def get_station_id(self):
         """Get the id of the current station."""
@@ -76,10 +90,21 @@ class Pyccolo:
         # Change the station and the song.
         self.station = self.pandora.get_station_by_id(station_id)
 
+        # Trigger next song.
         if self.timer:
             self.timer.cancel()
         self.timer = threading.Timer(0.25, self.next_song)
         self.timer.start()
+
+        # Save the new station into the configuration file.
+        try:
+            if not self.config.has_section("Station"):
+                self.config.add_section("Station")
+            self.config.set("Station", "station_id", station_id)
+            with open(CONF_FILE, "wb") as config:
+                self.config.write(config)
+        except:
+            pass
 
         print "Station: %s" % self.station.name
 
@@ -173,17 +198,50 @@ class Pyccolo:
         print "Gstreamer Error: %s, %s, %s" % (err, debug, err.code)
         self.next_song()
 
-def read_char():
-    """Read in a single character from the console."""
+class Controller:
+    def __init__(self, pyccolo):
+        GPIO.setmode(GPIO.BCM)
 
-    fd = sys.stdin.fileno()
-    old_settings = termios.tcgetattr(fd)
-    try:
-        tty.setcbreak(sys.stdin.fileno())
-        ch = sys.stdin.read(1)
-    finally:
-        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-    return ch
+        GPIO.setup(PIN_CCW, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+        self.ccw = False
+
+        GPIO.setup(PIN_CW, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+        self.cw = False
+
+        GPIO.setup(PIN_CLICK, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+        self.click_time = None
+
+    def detect_events(self):
+        """Process user interface events."""
+
+        # Counterclockwise rotation.
+        new_ccw = GPIO.input(PIN_CCW)
+        if new_ccw and not self.ccw:
+            pyccolo.tune_station(-1)
+        self.ccw = new_ccw
+
+        # Clockwise rotation.
+        new_cw = GPIO.input(PIN_CW)
+        if new_cw and not self.cw:
+            pyccolo.tune_station(1)
+        self.cw = new_cw
+
+        # Button pressed.
+        new_click = GPIO.input(PIN_CLICK)
+        if new_click and not self.click_time:
+            self.click_time = time.time()
+
+        # Button release.
+        if not new_click and self.click_time:
+            click_duration = time.time() - self.click_time
+            self.click_time = None
+
+            if pyccolo.is_playing():
+                pyccolo.pause()
+            else:
+                pyccolo.play()
+
+        return True
 
 def has_network():
     """Determine if the Pandora website can be reached."""
@@ -196,30 +254,9 @@ def has_network():
     return False
 
 if __name__ == "__main__":
-    # Read in configuration details.
-    cp = ConfigParser.ConfigParser()
-    cp.read(CONF_FILE)
-    try:
-        username = cp.get('User', 'username')
-        password = cp.get('User', 'password')
-    except:
-        print "Failed to load username and password from configuration file."
-        exit(1)
-
-    # Wait until a network connection is available.
     while not has_network():
         time.sleep(1);
-
-    # Initialize radio.
-    pyccolo = Pyccolo(username, password)
-    stations = pyccolo.get_stations()
-
-    # Attempt to restore last station.
-    try:
-        last_station_id = cp.get('Station', 'station_id')
-    except:
-        last_station_id = stations[0].id
-    pyccolo.set_station(last_station_id)
+    pyccolo = Pyccolo()
 
     # Start main loop in a separate thread.
     gobject.threads_init()
@@ -227,33 +264,21 @@ if __name__ == "__main__":
     g_loop.daemon = True
     g_loop.start()
 
-    while True:
-        # Handle user input.
-        ch = read_char()
-        if ch == 'q':
-            exit(0)
-        elif ch == 'p':
-            if pyccolo.is_playing():
-                pyccolo.pause()
-            else:
-                pyccolo.play()
-        elif ch == 'n':
-            pyccolo.next_song()
-        elif ch == 'u':
-            pyccolo.tune_station(1)
-        elif ch == 'd':
-            pyccolo.tune_station(-1)
+    controller = Controller(pyccolo)
+    while controller.detect_events():
+        pass
 
-        # Save current station id to restore on the next run.
-        station_id = pyccolo.get_station_id()
-        if station_id != last_station_id:
-            last_station_id = station_id
-            try:
-                if not cp.has_section('Station'):
-                    cp.add_section('Station')
-                cp.set('Station', 'station_id', last_station_id)
+        #if ch == 'q':
+        #    exit(0)
+        #elif ch == 'p':
+        #    if pyccolo.is_playing():
+        #        pyccolo.pause()
+        #    else:
+        #        pyccolo.play()
+        #elif ch == 'n':
+        #    pyccolo.next_song()
+        #elif ch == 'u':
+        #    pyccolo.tune_station(1)
+        #elif ch == 'd':
+        #    pyccolo.tune_station(-1)
 
-                with open(CONF_FILE, 'wb') as config:
-                    cp.write(config)
-            except:
-                pass
