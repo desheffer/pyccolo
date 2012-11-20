@@ -31,13 +31,46 @@ import RPi.GPIO as GPIO
 
 from pandora import *
 
+import pygtk
+pygtk.require("2.0")
+import gtk
+import cairo
+
 CONF_FILE = "/etc/pyccolo/pyccolo.conf"
 PIN_CCW = 23
 PIN_CW = 24
 PIN_CLICK = 25
 
-class Pyccolo:
+class Display(gtk.Window):
     def __init__(self):
+        super(Display, self).__init__()
+
+    def do_realize(self):
+        """Initialize a place to draw the GUI."""
+
+        self.set_flags(self.flags() | gtk.REALIZED)
+        self.connect("delete-event", gtk.main_quit)
+
+        self.window = gtk.gdk.Window(
+            self.get_parent_window(),
+            width = self.get_screen().get_width(),
+            height = self.get_screen().get_height(),
+            window_type = gtk.gdk.WINDOW_TOPLEVEL,
+            wclass = gtk.gdk.INPUT_OUTPUT,
+            event_mask = self.get_events() | gtk.gdk.EXPOSURE_MASK
+        )
+
+        (x, y, w, h, depth) = self.window.get_geometry()
+        self.size_allocate(gtk.gdk.Rectangle(x = x, y = y, width = w, height = h))
+        self.set_default_size(w, h)
+
+        self.style.attach(self.window)
+        self.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse("red"))
+        self.style.set_background(self.window, gtk.STATE_NORMAL)
+        self.window.set_user_data(self)
+
+class Pyccolo:
+    def __init__(self, display):
         self.station = None
         self.playlists = dict()
         self.song = None
@@ -254,31 +287,22 @@ def has_network():
     return False
 
 if __name__ == "__main__":
+    gobject.type_register(Display)
+
+    display = Display()
+    display.show_all()
+
     while not has_network():
         time.sleep(1);
-    pyccolo = Pyccolo()
+
+    pyccolo = Pyccolo(display)
+    controller = Controller(pyccolo)
 
     # Start main loop in a separate thread.
-    gobject.threads_init()
-    g_loop = threading.Thread(target=gobject.MainLoop().run)
+    gtk.gdk.threads_init()
+    g_loop = threading.Thread(target=gtk.main)
     g_loop.daemon = True
     g_loop.start()
 
-    controller = Controller(pyccolo)
     while controller.detect_events():
         pass
-
-        #if ch == 'q':
-        #    exit(0)
-        #elif ch == 'p':
-        #    if pyccolo.is_playing():
-        #        pyccolo.pause()
-        #    else:
-        #        pyccolo.play()
-        #elif ch == 'n':
-        #    pyccolo.next_song()
-        #elif ch == 'u':
-        #    pyccolo.tune_station(1)
-        #elif ch == 'd':
-        #    pyccolo.tune_station(-1)
-
