@@ -105,7 +105,7 @@ class Pyccolo:
         try:
             last_station_id = self.config.get("Station", "station_id")
         except:
-            last_station_id = stations[0].id
+            last_station_id = self.pandora.stations[0].id
         self.set_station(last_station_id)
 
     def get_station_id(self):
