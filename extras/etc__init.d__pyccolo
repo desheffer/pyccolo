@@ -10,7 +10,7 @@
 . /lib/init/vars.sh
 
 NAME=pyccolo
-APP=/root/pyccolo/pyccolo.py
+APP=/opt/pyccolo/pyccolo.py
 DAEMON=/usr/bin/openvt
 PARAMS="-s -w -- $APP"
 

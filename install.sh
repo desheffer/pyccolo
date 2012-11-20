@@ -14,6 +14,7 @@ fi
 
 cd `dirname $0`
 
+INSTALL=/opt/pyccolo
 CONFIG=/etc/pyccolo/pyccolo.conf
 
 # Install dependencies.
@@ -52,6 +53,14 @@ if [ ! -f $CONFIG ]; then
     echo "password = $PASSWORD" >> $CONFIG
     echo "Saved account information to $CONFIG."
 fi
+
+# Copy application directory.
+rm -rf $INSTALL
+cp -r . $INSTALL
+
+# Configure X11 session.
+rm -f /root/.xsession
+cp ./extras/root___xsession /root/.xsession
 
 # Configure application to start on boot.
 echo

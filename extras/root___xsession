@@ -1,0 +1,4 @@
+#!/bin/sh
+
+xsetroot -gray
+/opt/pyccolo/pyccolo.py
