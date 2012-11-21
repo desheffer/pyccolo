@@ -101,6 +101,7 @@ class Display(gtk.DrawingArea):
         self.art = None
         self.playing = False
 
+        self.bg = None
         try:
             self.bg = gtk.gdk.pixbuf_new_from_file('background.png')
         except:
@@ -122,7 +123,8 @@ class Display(gtk.DrawingArea):
         cr.paint()
 
         if self.bg:
-            widget.window.draw_pixbuf(None, self.bg, dest_x=0, dest_y=0)
+            widget.window.draw_pixbuf(None, self.bg, src_x=0, src_y=0,
+                                      dest_x=0, dest_y=0)
 
         if not self.playing:
             self.draw_text(cr, 240, 50, 'PAUSED', 24, align=0)
@@ -143,7 +145,8 @@ class Display(gtk.DrawingArea):
             self.draw_text(cr, 225, 125, self.album, 14)
 
         if self.art:
-            widget.window.draw_pixbuf(None, self.art, dest_x=75, dest_y=75)
+            widget.window.draw_pixbuf(None, self.art, src_x=0, src_y=0,
+                                      dest_x=75, dest_y=75)
 
     def draw_text(self, cr, x, y, text, size, r=1, g=1, b=1, a=1,
                   face='Ubuntu', align=1,
