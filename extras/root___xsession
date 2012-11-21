@@ -1,4 +1,4 @@
 #!/bin/sh
 
-xsetroot -gray
+xsetroot -solid black
 /opt/pyccolo/pyccolo.py
