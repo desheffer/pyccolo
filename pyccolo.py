@@ -76,8 +76,6 @@ class Window(gtk.Window):
         self.set_default_size(w, h)
 
         self.style.attach(self.window)
-        #self.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse('black'))
-        #self.style.set_background(self.window, gtk.STATE_NORMAL)
         self.window.set_user_data(self)
 
 #  ____  _           _
@@ -103,7 +101,10 @@ class Display(gtk.DrawingArea):
         self.art = None
         self.playing = False
 
-        self.bg = gtk.gdk.pixbuf_new_from_file('background.png')
+        try:
+            self.bg = gtk.gdk.pixbuf_new_from_file('background.png')
+        except:
+            pass
 
         # Create a container window.
         window = Window()
