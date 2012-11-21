@@ -1,0 +1,6 @@
+arm_freq=800
+gpu_freq=250
+
+hdmi_mode=23
+overscan_top=8
+overscan_bottom=8

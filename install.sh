@@ -62,13 +62,9 @@ cp -r . $INSTALL
 rm -f /root/.xsession
 cp ./extras/root___xsession /root/.xsession
 
-# Configure application to start on boot.
-echo
-rm -f /etc/init.d/pyccolo
-cp extras/etc__init.d__pyccolo /etc/init.d/pyccolo
-rm -f /etc/rcS.d/*pyccolo
-ln -s /etc/init.d/pyccolo /etc/rcS.d/S99pyccolo
-echo "Installed pyccolo service."
+# Copy boot configuration.
+rm -f /boot/config.txt
+cp ./extras/boot__config.txt /boot/config.txt
 
 echo
 echo "Done."
