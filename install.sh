@@ -58,13 +58,24 @@ fi
 rm -rf $INSTALL
 cp -r . $INSTALL
 
-# Configure X11 session.
-rm -f /root/.xsession
-cp ./extras/root___xsession /root/.xsession
-
 # Copy boot configuration.
 rm -f /boot/config.txt
 cp ./extras/boot__config.txt /boot/config.txt
+
+# Setup Pyccolo to start at boot.
+if [ -z `grep "pyccolo" /etc/inittab` ]; then
+    sed -i 's/id:3:initdefault:/id:5:initdefault:/'
+    echo "x:5:wait:/usr/bin/xinit /opt/pyccolo/pyccolo.py" >> /etc/inittab
+fi
+
+
+# Disable screensaver and power saving.
+if [ -z `grep "^xset -dpms$" /etc/X11/xinit/xinitrc` ]; then
+    echo "xset -dpms" >> /etc/X11/xinit/xinitrc
+fi
+if [ -z `grep "^xset s off$" /etc/X11/xinit/xinitrc` ]; then
+    echo "xset s off" >> /etc/X11/xinit/xinitrc
+fi
 
 echo
 echo "Done."
