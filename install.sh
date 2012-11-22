@@ -64,7 +64,7 @@ cp ./extras/boot__config.txt /boot/config.txt
 
 # Setup Pyccolo to start at boot.
 if [ -z `grep "pyccolo" /etc/inittab` ]; then
-    sed -i 's/id:3:initdefault:/id:5:initdefault:/'
+    sed -i 's/^id:.:initdefault:$/id:5:initdefault:/' /etc/inittab
     echo "x:5:wait:/usr/bin/xinit /opt/pyccolo/pyccolo.py" >> /etc/inittab
 fi
 
