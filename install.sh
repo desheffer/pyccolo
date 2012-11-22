@@ -4,10 +4,10 @@
 if [ ! -f /usr/bin/rpi-update -o ! -f /boot/config.txt ]; then
     echo "This device does not appear to be a Raspberry Pi."
     read -p "Are you sure you want to continue [y/N]? " CONFIRM
-    if [ -z $CONFIRM ]; then
+    if [ -z "$CONFIRM" ]; then
         CONFIRM='n'
     fi
-    if [ $CONFIRM != 'y' -a $CONFIRM != 'Y' ]; then
+    if [ "$CONFIRM" != 'y' -a "$CONFIRM" != 'Y' ]; then
         exit
     fi
 fi
@@ -27,7 +27,7 @@ apt-get install -y console-tools \
     gstreamer0.10-plugins-bad
 
 # Enable sound module.
-if [ -z `grep "^snd_bcm2835$" /etc/modules` ]; then
+if [ -z "`grep '^snd_bcm2835$' /etc/modules`" ]; then
     echo
     echo "snd_bcm2835" >> /etc/modules
     echo "Enabled snd_bcm2835 module for sound card."
@@ -63,16 +63,16 @@ rm -f /boot/config.txt
 cp ./extras/boot__config.txt /boot/config.txt
 
 # Setup Pyccolo to start at boot.
-if [ -z `grep 'pyccolo' /etc/inittab` ]; then
+if [ -z "`grep 'pyccolo' /etc/inittab`" ]; then
     sed -i 's/^id:.:initdefault:$/id:5:initdefault:/' /etc/inittab
     echo "x:5:wait:/usr/bin/xinit /opt/pyccolo/pyccolo.py" >> /etc/inittab
 fi
 
 # Disable screensaver and power saving.
-if [ -z `grep '^xset -dpms$' /etc/X11/xinit/xinitrc` ]; then
+if [ -z "`grep '^xset -dpms$' /etc/X11/xinit/xinitrc`" ]; then
     echo "xset -dpms" >> /etc/X11/xinit/xinitrc
 fi
-if [ -z `grep '^xset s off$' /etc/X11/xinit/xinitrc` ]; then
+if [ -z "`grep '^xset s off$' /etc/X11/xinit/xinitrc`" ]; then
     echo "xset s off" >> /etc/X11/xinit/xinitrc
 fi
 

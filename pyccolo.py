@@ -103,7 +103,7 @@ class Display(gtk.DrawingArea):
 
         self.bg = None
         try:
-            self.bg = gtk.gdk.pixbuf_new_from_file('background.png')
+            self.bg = gtk.gdk.pixbuf_new_from_file('/opt/pyccolo/background.png')
         except:
             pass
 
