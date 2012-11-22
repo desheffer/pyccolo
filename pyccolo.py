@@ -39,9 +39,7 @@ PIN_CCW = 23
 PIN_CW = 24
 PIN_CLICK = 25
 
-SCREEN_WIDTH = 480
-SCREEN_HEIGHT = 272
-ALBUM_ART_SIZE = 96
+ALBUM_ART_SIZE = 192
 
 # __        ___           _
 # \ \      / (_)_ __   __| | _____      __
@@ -64,15 +62,15 @@ class Window(gtk.Window):
 
         self.window = gtk.gdk.Window(
             self.get_parent_window(),
-            width = SCREEN_WIDTH, #self.get_screen().get_width(),
-            height = SCREEN_HEIGHT, #self.get_screen().get_height(),
-            window_type = gtk.gdk.WINDOW_TOPLEVEL,
-            wclass = gtk.gdk.INPUT_OUTPUT,
-            event_mask = self.get_events() | gtk.gdk.EXPOSURE_MASK
+            width=self.get_screen().get_width(),
+            height=self.get_screen().get_height(),
+            window_type=gtk.gdk.WINDOW_TOPLEVEL,
+            wclass=gtk.gdk.INPUT_OUTPUT,
+            event_mask=self.get_events() | gtk.gdk.EXPOSURE_MASK
         )
 
         (x, y, w, h, depth) = self.window.get_geometry()
-        self.size_allocate(gtk.gdk.Rectangle(x = x, y = y, width = w, height = h))
+        self.size_allocate(gtk.gdk.Rectangle(x=x, y=y, width=w, height=h))
         self.set_default_size(w, h)
 
         self.style.attach(self.window)
@@ -127,26 +125,26 @@ class Display(gtk.DrawingArea):
                                       dest_x=0, dest_y=0)
 
         if not self.playing:
-            self.draw_text(cr, 240, 50, 'PAUSED', 24, align=0)
+            self.draw_text(cr, 360, 100, 'PAUSED', 28, align=0)
 
         if self.mode == Controller.MODE_STATION:
-            self.draw_text(cr, 240, 250, '<- Station ->', 16, align=0)
+            self.draw_text(cr, 360, 425, '<- Station ->', 20, align=0)
 
         if self.station:
             station = self.stations[self.station]
-            self.draw_text(cr, 240, 225, station, 16, align=0)
+            self.draw_text(cr, 360, 385, station, 24, align=0)
 
         if self.track:
-            self.draw_text(cr, 240, 40, self.track, 20, align=0)
-            self.draw_text(cr, 220, 100, 'by', 10, align=-1)
-            self.draw_text(cr, 225, 100, self.artist, 16,
+            self.draw_text(cr, 360, 80, self.track, 28, align=0)
+            self.draw_text(cr, 340, 175, 'by', 14, align=-1)
+            self.draw_text(cr, 350, 175, self.artist, 20,
                            weight=cairo.FONT_WEIGHT_BOLD)
-            self.draw_text(cr, 220, 125, 'from', 10, align=-1)
-            self.draw_text(cr, 225, 125, self.album, 14)
+            self.draw_text(cr, 340, 225, 'from', 14, align=-1)
+            self.draw_text(cr, 350, 225, self.album, 18)
 
         if self.art:
             widget.window.draw_pixbuf(None, self.art, src_x=0, src_y=0,
-                                      dest_x=75, dest_y=75)
+                                      dest_x=75, dest_y=125)
 
     def draw_text(self, cr, x, y, text, size, r=1, g=1, b=1, a=1,
                   face='Ubuntu', align=1,

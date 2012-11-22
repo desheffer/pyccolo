@@ -1,9 +1,7 @@
 arm_freq=800
 gpu_freq=250
 
-hdmi_mode=23
-#overscan_top=8
-#overscan_bottom=8
-
-framebuffer_width=480
-framebuffer_height=272
+sdtv_aspect=3
+disable_overscan=1
+framebuffer_width=720
+framebuffer_height=480

@@ -75,6 +75,9 @@ fi
 if [ -z "`grep '^xset s off$' /etc/X11/xinit/xinitrc`" ]; then
     echo "xset s off" >> /etc/X11/xinit/xinitrc
 fi
+if [ -z "`grep '^xset s noblank$' /etc/X11/xinit/xinitrc`" ]; then
+    echo "xset s noblank" >> /etc/X11/xinit/xinitrc
+fi
 
 echo
 echo "Done."
