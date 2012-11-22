@@ -4,8 +4,8 @@ Pyccolo
 Small Python application for playing Pandora radio on a Raspberry Pi.
 
 The application will be coded to assume the following set of hardware is used:
--   Hacked Keyboard?
--   LCD Screen?
+-   Small LCD screen connected via S-Video.
+-   Rotational encoder and push buttons connected via GPIO pins.
 
 ## Installation
 
