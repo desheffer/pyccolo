@@ -169,11 +169,14 @@ class Display(gtk.DrawingArea):
 
         art_url = self.art_url
 
-        content = urllib2.urlopen(art_url).read()
-        loader = gtk.gdk.PixbufLoader()
-        loader.set_size(ALBUM_ART_SIZE, ALBUM_ART_SIZE)
-        loader.write(content)
-        loader.close()
+        try:
+            content = urllib2.urlopen(art_url).read()
+            loader = gtk.gdk.PixbufLoader()
+            loader.set_size(ALBUM_ART_SIZE, ALBUM_ART_SIZE)
+            loader.write(content)
+            loader.close()
+        except:
+            return
 
         if self.art_url == art_url:
             self.art = loader.get_pixbuf()
