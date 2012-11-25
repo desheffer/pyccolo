@@ -29,15 +29,15 @@ import gtk
 import gobject
 import cairo
 
-#import RPi.GPIO as GPIO
+import RPi.GPIO as GPIO
 import ConfigParser
 import time
 import urllib2
 
 CONF_FILE = '/etc/pyccolo/pyccolo.conf'
-PIN_CCW = 23
-PIN_CW = 24
-PIN_CLICK = 25
+PIN_A = 24
+PIN_B = 25
+PIN_C = 23
 
 ALBUM_ART_SIZE = 192
 
@@ -169,11 +169,14 @@ class Display(gtk.DrawingArea):
 
         art_url = self.art_url
 
-        content = urllib2.urlopen(art_url).read()
-        loader = gtk.gdk.PixbufLoader()
-        loader.set_size(ALBUM_ART_SIZE, ALBUM_ART_SIZE)
-        loader.write(content)
-        loader.close()
+        try:
+            content = urllib2.urlopen(art_url).read()
+            loader = gtk.gdk.PixbufLoader()
+            loader.set_size(ALBUM_ART_SIZE, ALBUM_ART_SIZE)
+            loader.write(content)
+            loader.close()
+        except:
+            return
 
         if self.art_url == art_url:
             self.art = loader.get_pixbuf()
@@ -420,50 +423,55 @@ class Controller(gobject.GObject):
         gobject.GObject.__init__(self)
 
         self.mode = Controller.MODE_STATION
-        self.ccw = False
-        self.cw = False
         self.click_time = None
+
+        self.ccw_step = 0
+        self.cw_step = 0
+        self.clockwise = ((False, True),
+                          (False, False),
+                          (True, False),
+                          (True, True))
 
     def main(self):
         """Process user interface events."""
 
         self.emit('change-mode', self.mode)
 
-        return
-
         GPIO.setmode(GPIO.BCM)
-        GPIO.setup(PIN_CCW, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-        GPIO.setup(PIN_CW, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-        GPIO.setup(PIN_CLICK, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+        GPIO.setup(PIN_A, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        GPIO.setup(PIN_B, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
         while True:
-            # Counterclockwise rotation.
-            new_ccw = GPIO.input(PIN_CCW)
-            if new_ccw and not self.ccw:
-                self.emit('station-down')
-            self.ccw = new_ccw
+            new_a = GPIO.input(PIN_A)
+            new_b = GPIO.input(PIN_B)
 
-            # Clockwise rotation.
-            new_cw = GPIO.input(PIN_CW)
-            if new_cw and not self.cw:
-                self.emit('station-up')
-            self.cw = new_cw
+            if self.clockwise[self.cw_step] == (new_a, new_b):
+                self.cw_step = self.cw_step + 1
+                if self.cw_step == 4:
+                    self.cw_step = self.ccw_step = 0
+                    self.emit('station-up')
 
-            # Button pressed.
-            # TODO: needs work
-            new_click = GPIO.input(PIN_CLICK)
-            if new_click:
-                if not self.click_time:
-                    self.click_time = time.time()
-                click_duration = time.time() - self.click_time
-                if click_duration > 1:
-                    self.emit('next-song')
-            # Button released.
-            elif not new_click and self.click_time:
-                click_duration = time.time() - self.click_time
-                if self.click_time < 1:
-                    self.emit('play-pause')
-                self.click_time = None
+            if self.clockwise[3 - self.ccw_step] == (new_a, new_b):
+                self.ccw_step = self.ccw_step + 1
+                if self.ccw_step == 4:
+                    self.cw_step = self.ccw_step = 0
+                    self.emit('station-down')
+
+            ## Button pressed.
+            ## TODO: needs work
+            #new_click = GPIO.input(PIN_CLICK)
+            #if new_click:
+            #    if not self.click_time:
+            #        self.click_time = time.time()
+            #    click_duration = time.time() - self.click_time
+            #    if click_duration > 1:
+            #        self.emit('next-song')
+            ## Button released.
+            #elif not new_click and self.click_time:
+            #    click_duration = time.time() - self.click_time
+            #    if self.click_time < 1:
+            #        self.emit('play-pause')
+            #    self.click_time = None
 
 gobject.type_register(Window)
 gobject.type_register(Display)
