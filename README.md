@@ -9,7 +9,7 @@ The application will be coded to assume the following set of hardware is used:
 
 ## Installation
 
-1. Download the Raspbian Image by Hexxeh.
+1. Download the Arch Linux image.
 
         wget http://downloads.raspberrypi.org/images/archlinuxarm/archlinux-hf-2012-09-18/archlinux-hf-2012-09-18.zip
         unzip archlinux-hf-2012-09-18.zip
