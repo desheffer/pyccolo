@@ -4,40 +4,29 @@ Pyccolo
 Small Python application for playing Pandora radio on a Raspberry Pi.
 
 The application will be coded to assume the following set of hardware is used:
--   Small LCD screen connected via S-Video.
+-   Small LCD screen connected via analog video out.
 -   Rotational encoder and push buttons connected via GPIO pins.
 
 ## Installation
 
 1. Download the Raspbian Image by Hexxeh.
 
-        wget http://distribution.hexxeh.net/raspbian/raspbian-r3.zip
-        unzip raspbian-r3.zip
-        cd raspbian-r3
+        wget http://downloads.raspberrypi.org/images/archlinuxarm/archlinux-hf-2012-09-18/archlinux-hf-2012-09-18.zip
+        unzip archlinux-hf-2012-09-18.zip
 
-2. Check the file integrity.
+2.  Write it to an SD card and then boot.
 
-        sha1sum -c raspbian-r3.img.sha1
+        dd bs=1M if=archlinux-hf-2012-09-18.img of=/dev/sdX
 
-3.  Write it to an SD card and then boot.
+3.  Change the root password (default is 'root').
 
-        dd bs=1M if=raspbian-r3.img of=/dev/sdX
+4.  Check for updates.
 
-4.  Change the root password (default is 'hexxeh').
+        pacman -Syyu
 
-5.  Check for updates.
+5.  Clone the Pyccolo repository and install.
 
-        apt-get update && apt-get -y dist-upgrade
-
-        apt-get install -y ntp fake-hwclock &&
-        dpkg-reconfigure tzdata
-
-        rpi-update
-
-        reboot
-
-6.  Clone the Pyccolo repository and install.
-
+        pacman -S git
         git clone git://github.com/desheffer/pyccolo.git
 
         cd pyccolo

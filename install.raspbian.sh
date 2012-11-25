@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Ensure this is a Raspberry Pi and not something else.
-if [ ! -f /boot/config.txt ]; then
+if [ ! -f /usr/bin/rpi-update -o ! -f /boot/config.txt ]; then
     echo "This device does not appear to be a Raspberry Pi."
     read -p "Are you sure you want to continue [y/N]? " CONFIRM
     if [ -z "$CONFIRM" ]; then
@@ -19,21 +19,19 @@ CONFIG=/etc/pyccolo/pyccolo.conf
 
 # Install dependencies.
 echo "Installing required dependencies..."
-pacman --noconfirm -S \
-    python2 \
-    gstreamer0.10-python \
-    gstreamer0.10-base-plugins \
-    gstreamer0.10-good-plugins \
-    gstreamer0.10-bad-plugins \
-    pygtk \
-    alsa-firmware alsa-utils \
-    xf86-video-fbdev xorg-server xorg-xinit \
-    xorg-utils xorg-server-utils
+apt-get install -y console-tools \
+    alsa-utils \
+    python-gst0.10 \
+    gstreamer0.10-plugins-base \
+    gstreamer0.10-plugins-good \
+    gstreamer0.10-plugins-bad
 
 # Enable sound module.
-echo
-echo "snd_bcm2835" > /etc/modules-load.d/snd_bcm2835
-echo "Enabled snd_bcm2835 module for sound card."
+if [ -z "`grep '^snd_bcm2835$' /etc/modules`" ]; then
+    echo
+    echo "snd_bcm2835" >> /etc/modules
+    echo "Enabled snd_bcm2835 module for sound card."
+fi
 
 # Set default sound device.
 echo
@@ -71,15 +69,15 @@ if [ -z "`grep 'pyccolo' /etc/inittab`" ]; then
 fi
 
 # Disable screensaver and power saving.
-#if [ -z "`grep '^xset -dpms$' /etc/X11/xinit/xinitrc`" ]; then
-#    echo "xset -dpms" >> /etc/X11/xinit/xinitrc
-#fi
-#if [ -z "`grep '^xset s off$' /etc/X11/xinit/xinitrc`" ]; then
-#    echo "xset s off" >> /etc/X11/xinit/xinitrc
-#fi
-#if [ -z "`grep '^xset s noblank$' /etc/X11/xinit/xinitrc`" ]; then
-#    echo "xset s noblank" >> /etc/X11/xinit/xinitrc
-#fi
+if [ -z "`grep '^xset -dpms$' /etc/X11/xinit/xinitrc`" ]; then
+    echo "xset -dpms" >> /etc/X11/xinit/xinitrc
+fi
+if [ -z "`grep '^xset s off$' /etc/X11/xinit/xinitrc`" ]; then
+    echo "xset s off" >> /etc/X11/xinit/xinitrc
+fi
+if [ -z "`grep '^xset s noblank$' /etc/X11/xinit/xinitrc`" ]; then
+    echo "xset s noblank" >> /etc/X11/xinit/xinitrc
+fi
 
 echo
 echo "Done."
