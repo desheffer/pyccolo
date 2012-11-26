@@ -3,9 +3,8 @@ Description=Pyccolo
 After=multi-user.target
 
 [Service]
-ExecStart=/opt/pyccolo/pyccolo.py
-KillMode=process
-Restart=always
+ExecStart=/opt/pyccolo/start.sh
+Type=forking
 
 [Install]
 WantedBy=graphical.target
