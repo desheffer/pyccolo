@@ -17,6 +17,7 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
+import os
 from pandora import Pandora
 #import RPi.GPIO as GPIO
 import pygame
@@ -58,14 +59,7 @@ class Display(gobject.GObject):
         self.album = ''
         self.track = ''
         self.art_url = ''
-        self.art = None
         self.playing = False
-
-        self.bg = None
-        try:
-            self.bg = pygame.image.load('background.png').convert()
-        except:
-            pass
 
         # Intialize screen.
         pygame.init()
@@ -73,6 +67,14 @@ class Display(gobject.GObject):
         display = pygame.display.Info()
         size = (display.current_w, display.current_h)
         self.screen = pygame.display.set_mode(size)
+
+        # Load images.
+        self.background_img = None
+        self.art_img = None
+        try:
+            self.background_img = pygame.image.load('background.png').convert()
+        except:
+            pass
 
     def main(self):
         """Render the user interface and poll for events in a loop."""
@@ -102,8 +104,8 @@ class Display(gobject.GObject):
         surface = surface.convert()
         surface.fill((0, 0, 0))
 
-        if self.bg:
-            surface.blit(self.bg, self.bg.get_rect())
+        if self.background_img:
+            surface.blit(self.background_img, self.background_img.get_rect())
 
         if not self.playing:
             self.draw_text(surface, 360, 100, 'PAUSED', 28, align=0)
@@ -122,11 +124,11 @@ class Display(gobject.GObject):
             self.draw_text(surface, 340, 225, 'from', 14, align=-1)
             self.draw_text(surface, 350, 225, self.album, 18)
 
-        if self.art:
-            art_pos = self.art.get_rect()
+        if self.art_img:
+            art_pos = self.art_img.get_rect()
             art_pos.x = 75
             art_pos.y = 125
-            surface.blit(self.art, art_pos)
+            surface.blit(self.art_img, art_pos)
 
         self.screen.blit(surface, (0, 0))
 
@@ -158,7 +160,7 @@ class Display(gobject.GObject):
         surface.blit(text_surface, text_pos)
 
     def load_art(self):
-        self.art = None
+        self.art_img = None
 
         art_url = self.art_url
 
@@ -172,7 +174,7 @@ class Display(gobject.GObject):
             return
 
         if self.art_url == art_url:
-            self.art = art_surface
+            self.art_img = art_surface
             self.queue_draw = True
 
     def change_mode(self, controller, mode):
@@ -436,21 +438,21 @@ class Controller(gobject.GObject):
         #GPIO.setup(PIN_A, GPIO.IN, pull_up_down=GPIO.PUD_UP)
         #GPIO.setup(PIN_B, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
-        while True:
-            #new_a = GPIO.input(PIN_A)
-            #new_b = GPIO.input(PIN_B)
+        #while True:
+        #    new_a = GPIO.input(PIN_A)
+        #    new_b = GPIO.input(PIN_B)
 
-            if self.clockwise[self.cw_step] == (new_a, new_b):
-                self.cw_step = self.cw_step + 1
-                if self.cw_step == 4:
-                    self.cw_step = self.ccw_step = 0
-                    self.emit('station-up')
+        #    if self.clockwise[self.cw_step] == (new_a, new_b):
+        #        self.cw_step = self.cw_step + 1
+        #        if self.cw_step == 4:
+        #            self.cw_step = self.ccw_step = 0
+        #            self.emit('station-up')
 
-            if self.clockwise[3 - self.ccw_step] == (new_a, new_b):
-                self.ccw_step = self.ccw_step + 1
-                if self.ccw_step == 4:
-                    self.cw_step = self.ccw_step = 0
-                    self.emit('station-down')
+        #    if self.clockwise[3 - self.ccw_step] == (new_a, new_b):
+        #        self.ccw_step = self.ccw_step + 1
+        #        if self.ccw_step == 4:
+        #            self.cw_step = self.ccw_step = 0
+        #            self.emit('station-down')
 
 gobject.type_register(Display)
 gobject.type_register(Controller)
