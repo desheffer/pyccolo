@@ -17,6 +17,7 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
+import os
 from pandora import Pandora
 #import RPi.GPIO as GPIO
 import pygame
