@@ -166,14 +166,14 @@ class Display(gobject.GObject):
         try:
             content = urllib2.urlopen(art_url).read()
             buf = StringIO.StringIO(content)
-            art_surface = pygame.image.load(buf, art_url).convert()
+            art_surface = pygame.image.load(buf, art_url)
             art_surface = pygame.transform.smoothscale(art_surface,
                                                        ALBUM_ART_SIZE)
         except:
             return
 
         if self.art_url == art_url:
-            self.art_img = art_surface
+            self.art_img = art_surface.convert()
             self.queue_draw = True
 
     def change_mode(self, controller, mode):
