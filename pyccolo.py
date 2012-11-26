@@ -35,7 +35,7 @@ PIN_A = 24
 PIN_B = 25
 PIN_C = 23
 
-ALBUM_ART_SIZE = 192
+ALBUM_ART_SIZE = (192, 192)
 
 #  ____  _           _
 # |  _ \(_)___ _ __ | | __ _ _   _
@@ -63,7 +63,7 @@ class Display(gobject.GObject):
 
         self.bg = None
         try:
-            self.bg = pygame.image.load('background.png')
+            self.bg = pygame.image.load('background.png').convert()
         except:
             pass
 
@@ -71,11 +71,12 @@ class Display(gobject.GObject):
         pygame.init()
         pygame.mouse.set_visible(False)
         display = pygame.display.Info()
-        #size = (display.current_w, display.current_h)
-        size = (1000, 1000)
+        size = (display.current_w, display.current_h)
         self.screen = pygame.display.set_mode(size)
 
     def main(self):
+        """Render the user interface and poll for events in a loop."""
+
         while True:
             # Monitor for quit events.
             events = pygame.event.get()
@@ -94,6 +95,8 @@ class Display(gobject.GObject):
             pygame.display.flip()
 
     def render(self):
+        """Render user interface elements."""
+
         # Fill background
         surface = pygame.Surface(self.screen.get_size())
         surface = surface.convert()
@@ -129,6 +132,8 @@ class Display(gobject.GObject):
 
     def draw_text(self, surface, x, y, text, size, r=255, g=255, b=255,
                   bold=False, italic=False, face='Ubuntu', align=1, valign=-1):
+        """Draw text on the screen."""
+
         font = pygame.font.SysFont(face, size, bold, italic)
         text_surface = font.render(text, 1, (r, g, b))
 
@@ -158,14 +163,17 @@ class Display(gobject.GObject):
         art_url = self.art_url
 
         try:
-            content = urllib2.urlopen(art_url)
+            content = urllib2.urlopen(art_url).read()
             buf = StringIO.StringIO(content)
+            art_surface = pygame.image.load(buf, art_url).convert()
+            art_surface = pygame.transform.smoothscale(art_surface,
+                                                       ALBUM_ART_SIZE)
         except:
             return
 
         if self.art_url == art_url:
-            self.art = pygame.image.load(buf, art_url)
-        self.queue_draw = True
+            self.art = art_surface
+            self.queue_draw = True
 
     def change_mode(self, controller, mode):
         """Change the current user interface control mode."""
@@ -215,7 +223,7 @@ class Music(gobject.GObject):
         }
 
     def __init__(self):
-        """Initialize and play Pandora radio stations."""
+        """Initialize audio functionality."""
 
         gobject.GObject.__init__(self)
 
@@ -237,6 +245,8 @@ class Music(gobject.GObject):
         bus.connect('message::error', self.on_gst_error)
 
     def init(self, username=None, password=None):
+        """Connect to radio and begin playing music."""
+
         self.config = ConfigParser.ConfigParser()
         self.config.read(CONF_FILE)
 
@@ -422,13 +432,13 @@ class Controller(gobject.GObject):
 
         self.emit('change-mode', self.mode)
 
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(PIN_A, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.setup(PIN_B, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        #GPIO.setmode(GPIO.BCM)
+        #GPIO.setup(PIN_A, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        #GPIO.setup(PIN_B, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
         while True:
-            new_a = GPIO.input(PIN_A)
-            new_b = GPIO.input(PIN_B)
+            #new_a = GPIO.input(PIN_A)
+            #new_b = GPIO.input(PIN_B)
 
             if self.clockwise[self.cw_step] == (new_a, new_b):
                 self.cw_step = self.cw_step + 1
@@ -441,22 +451,6 @@ class Controller(gobject.GObject):
                 if self.ccw_step == 4:
                     self.cw_step = self.ccw_step = 0
                     self.emit('station-down')
-
-            ## Button pressed.
-            ## TODO: needs work
-            #new_click = GPIO.input(PIN_CLICK)
-            #if new_click:
-            #    if not self.click_time:
-            #        self.click_time = time.time()
-            #    click_duration = time.time() - self.click_time
-            #    if click_duration > 1:
-            #        self.emit('next-song')
-            ## Button released.
-            #elif not new_click and self.click_time:
-            #    click_duration = time.time() - self.click_time
-            #    if self.click_time < 1:
-            #        self.emit('play-pause')
-            #    self.click_time = None
 
 gobject.type_register(Display)
 gobject.type_register(Controller)
