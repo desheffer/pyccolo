@@ -3,7 +3,7 @@ Description=Pyccolo
 After=multi-user.target
 
 [Service]
-ExecStart=/usr/bin/xinit /opt/pyccolo/pyccolo.py
+ExecStart=/opt/pyccolo/pyccolo.py
 KillMode=process
 Restart=always
 

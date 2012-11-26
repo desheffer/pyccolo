@@ -18,18 +18,13 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from pandora import Pandora
+#import RPi.GPIO as GPIO
+import pygame
 import pygst
 pygst.require('0.10')
 import gst
 import threading
-
-import pygtk
-pygtk.require('2.0')
-import gtk
 import gobject
-import cairo
-
-#import RPi.GPIO as GPIO
 import ConfigParser
 import time
 import urllib2
@@ -41,41 +36,6 @@ PIN_C = 23
 
 ALBUM_ART_SIZE = 192
 
-# __        ___           _
-# \ \      / (_)_ __   __| | _____      __
-#  \ \ /\ / /| | '_ \ / _` |/ _ \ \ /\ / /
-#   \ V  V / | | | | | (_| | (_) \ V  V /
-#    \_/\_/  |_|_| |_|\__,_|\___/ \_/\_/
-#
-
-class Window(gtk.Window):
-    def __init__(self):
-        """Initialize graphics."""
-
-        gtk.Window.__init__(self)
-
-    def do_realize(self):
-        """Initialize a place to draw the GUI."""
-
-        self.set_flags(self.flags() | gtk.REALIZED)
-        self.connect('delete-event', gtk.main_quit)
-
-        self.window = gtk.gdk.Window(
-            self.get_parent_window(),
-            width=self.get_screen().get_width(),
-            height=self.get_screen().get_height(),
-            window_type=gtk.gdk.WINDOW_TOPLEVEL,
-            wclass=gtk.gdk.INPUT_OUTPUT,
-            event_mask=self.get_events() | gtk.gdk.EXPOSURE_MASK
-        )
-
-        (x, y, w, h, depth) = self.window.get_geometry()
-        self.size_allocate(gtk.gdk.Rectangle(x=x, y=y, width=w, height=h))
-        self.set_default_size(w, h)
-
-        self.style.attach(self.window)
-        self.window.set_user_data(self)
-
 #  ____  _           _
 # |  _ \(_)___ _ __ | | __ _ _   _
 # | | | | / __| '_ \| |/ _` | | | |
@@ -83,12 +43,13 @@ class Window(gtk.Window):
 # |____/|_|___/ .__/|_|\__,_|\__, |
 #             |_|            |___/
 
-class Display(gtk.DrawingArea):
+class Display(gobject.GObject):
     def __init__(self):
         """Initialize graphical user interface."""
 
-        gtk.DrawingArea.__init__(self)
+        gobject.GObject.__init__(self)
 
+        self.queue_draw = True
         self.mode = None
         self.stations = []
         self.station = None
@@ -101,68 +62,80 @@ class Display(gtk.DrawingArea):
 
         self.bg = None
         try:
-            self.bg = gtk.gdk.pixbuf_new_from_file('/opt/pyccolo/background.png')
+            pass #self.bg = gtk.gdk.pixbuf_new_from_file('/opt/pyccolo/background.png')
         except:
             pass
 
-        # Create a container window.
-        window = Window()
-        window.add(self)
-        window.show_all()
+        # Intialize screen.
+        pygame.init()
+        pygame.mouse.set_visible(False)
+        display = pygame.display.Info()
+        size = (display.current_w, display.current_h)
+        self.screen = pygame.display.set_mode(size)
 
-        self.connect('expose-event', self.expose)
+    def main(self):
+        while True:
+            # Monitor for quit events.
+            events = pygame.event.get()
+            for event in events:
+                if event.type == pygame.QUIT:
+                    exit(0)
 
-    def expose(self, widget, event):
-        cr = widget.window.cairo_create()
-        w = self.allocation.width
-        h = self.allocation.height
+            # If nothing has changed then sleep momentarily.
+            if not self.queue_draw:
+                time.sleep(0.01)
+                continue
+            self.queue_draw = False
 
-        cr.set_source_rgb(0, 0, 0)
-        cr.paint()
+            # Render the user interface.
+            self.render()
+            pygame.display.flip()
 
-        if self.bg:
-            widget.window.draw_pixbuf(None, self.bg, src_x=0, src_y=0,
-                                      dest_x=0, dest_y=0)
+    def render(self):
+        #self.screen.fill((0, 0, 0))
+
+        # Fill background
+        surface = pygame.Surface(self.screen.get_size())
+        surface = surface.convert()
+        surface.fill((0, 0, 0))
+
+        #if self.bg:
+        #    widget.window.draw_pixbuf(None, self.bg, src_x=0, src_y=0,
+        #                              dest_x=0, dest_y=0)
 
         if not self.playing:
-            self.draw_text(cr, 360, 100, 'PAUSED', 28, align=0)
+            self.draw_text(surface, 360, 100, 'PAUSED', 28, align=0)
 
         if self.mode == Controller.MODE_STATION:
-            self.draw_text(cr, 360, 425, '<- Station ->', 20, align=0)
+            self.draw_text(surface, 360, 425, '<- Station ->', 20, align=0)
 
         if self.station:
             station = self.stations[self.station]
-            self.draw_text(cr, 360, 385, station, 24, align=0)
+            self.draw_text(surface, 360, 385, station, 24, align=0)
 
         if self.track:
-            self.draw_text(cr, 360, 80, self.track, 28, align=0)
-            self.draw_text(cr, 340, 175, 'by', 14, align=-1)
-            self.draw_text(cr, 350, 175, self.artist, 20,
-                           weight=cairo.FONT_WEIGHT_BOLD)
-            self.draw_text(cr, 340, 225, 'from', 14, align=-1)
-            self.draw_text(cr, 350, 225, self.album, 18)
+            self.draw_text(surface, 360, 80, self.track, 28, align=0)
+            self.draw_text(surface, 340, 175, 'by', 14, align=-1)
+            self.draw_text(surface, 350, 175, self.artist, 20, bold=True)
+            self.draw_text(surface, 340, 225, 'from', 14, align=-1)
+            self.draw_text(surface, 350, 225, self.album, 18)
 
-        if self.art:
-            widget.window.draw_pixbuf(None, self.art, src_x=0, src_y=0,
-                                      dest_x=75, dest_y=125)
+        #if self.art:
+        #    widget.window.draw_pixbuf(None, self.art, src_x=0, src_y=0,
+        #                              dest_x=75, dest_y=125)
 
-    def draw_text(self, cr, x, y, text, size, r=1, g=1, b=1, a=1,
-                  face='Ubuntu', align=1,
-                  slant=cairo.FONT_SLANT_NORMAL,
-                  weight=cairo.FONT_WEIGHT_NORMAL):
-        cr.save()
-        cr.select_font_face(face, slant, weight)
-        cr.set_font_size(size)
-        cr.set_source_rgba(r, g, b, a)
+        self.screen.blit(surface, (0, 0))
+
+    def draw_text(self, surface, x, y, text, size, r=255, g=255, b=255,
+                  face='Ubuntu', align=1, bold=False, italic=False):
+        font = pygame.font.SysFont(face, size, bold, italic)
+        text_surface = font.render(text, 1, (r, g, b))
+        text_pos = text_surface.get_rect()
         if align == 0:
-            x = x - cr.text_extents(text)[2] / 2
+            text_pos.centerx = surface.get_rect().centerx
         elif align == -1:
-            x = x - cr.text_extents(text)[2]
-        cr.move_to(x, y)
-        cr.text_path(text)
-        cr.clip()
-        cr.paint()
-        cr.restore()
+            pass
+        surface.blit(text_surface, text_pos)
 
     def load_art(self):
         self.art = None
@@ -171,29 +144,29 @@ class Display(gtk.DrawingArea):
 
         try:
             content = urllib2.urlopen(art_url).read()
-            loader = gtk.gdk.PixbufLoader()
-            loader.set_size(ALBUM_ART_SIZE, ALBUM_ART_SIZE)
-            loader.write(content)
-            loader.close()
+            #loader = gtk.gdk.PixbufLoader()
+            #loader.set_size(ALBUM_ART_SIZE, ALBUM_ART_SIZE)
+            #loader.write(content)
+            #loader.close()
         except:
             return
 
-        if self.art_url == art_url:
-            self.art = loader.get_pixbuf()
-        self.queue_draw()
+        #if self.art_url == art_url:
+        #    self.art = loader.get_pixbuf()
+        self.queue_draw = True
 
     def change_mode(self, controller, mode):
         """Change the current user interface control mode."""
 
         self.mode = mode
-        self.queue_draw()
+        self.queue_draw = True
 
     def change_station(self, music, station, stations):
         """Change the station list that is displayed."""
 
         self.stations = stations
         self.station = station
-        self.queue_draw()
+        self.queue_draw = True
 
     def change_song(self, music, artist, album, track, art):
         """Change the song name that is displayed."""
@@ -203,13 +176,13 @@ class Display(gtk.DrawingArea):
         self.track = track
         self.art_url = art
         threading.Thread(target=self.load_art).start()
-        self.queue_draw()
+        self.queue_draw = True
 
     def change_state(self, music, state):
         """Change the playing state that is displayed."""
 
         self.playing = state
-        self.queue_draw()
+        self.queue_draw = True
 
 #  __  __           _
 # |  \/  |_   _ ___(_) ___
@@ -473,7 +446,6 @@ class Controller(gobject.GObject):
             #        self.emit('play-pause')
             #    self.click_time = None
 
-gobject.type_register(Window)
 gobject.type_register(Display)
 gobject.type_register(Controller)
 gobject.type_register(Music)
@@ -498,6 +470,6 @@ if __name__ == '__main__':
 
     # Start controller in its own thread.
     threading.Thread(target=controller.main).start()
-    gtk.gdk.threads_init()
+    gobject.threads_init()
 
-    gtk.main()
+    display.main()

@@ -26,9 +26,7 @@ pacman --needed --noconfirm -S \
     gstreamer0.10-good-plugins \
     gstreamer0.10-bad-plugins \
     alsa-firmware alsa-utils \
-    xf86-video-fbdev xorg-server xorg-xinit \
-    xorg-utils xorg-server-utils \
-    pygtk \
+    pygame \
     ttf-ubuntu-font-family
 
 # Setup configuration file.
