@@ -26,7 +26,7 @@ pacman --needed --noconfirm -S \
     gstreamer0.10-good-plugins \
     gstreamer0.10-bad-plugins \
     alsa-firmware alsa-utils \
-    pygame \
+    python2-pygame \
     ttf-ubuntu-font-family
 
 # Setup configuration file.
@@ -54,6 +54,7 @@ cp ./extras/boot__config.txt /boot/config.txt
 
 # Enable sound module.
 echo
+modprobe snd_bcm2835
 echo "snd_bcm2835" > /etc/modules-load.d/snd_bcm2835.conf
 echo "Enabled snd_bcm2835 module for sound card."
 
