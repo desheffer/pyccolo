@@ -67,6 +67,7 @@ echo "Set headphone jack as the default sound device."
 # Configure application to start as a service.
 echo
 cp -f extras/pyccolo.service /usr/lib/systemd/system/pyccolo.service
+systemctl --system daemon-reload
 systemctl enable pyccolo
 echo "Enabled systemd service for Pyccolo."
 

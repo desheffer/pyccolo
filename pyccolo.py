@@ -451,6 +451,11 @@ gobject.type_register(Controller)
 gobject.type_register(Music)
 
 if __name__ == '__main__':
+    # Fork the daemon.
+    pid = os.fork()
+    if pid > 0:
+        sys.exit(0)
+
     display = Display()
     controller = Controller()
     music = Music()
