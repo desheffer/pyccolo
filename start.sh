@@ -1,2 +1,3 @@
 #!/bin/sh
-/opt/pyccolo/pyccolo.py &
+cd /opt/pyccolo
+./pyccolo.py &

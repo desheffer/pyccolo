@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python
 
 """
 Copyright (C) 2012 Doug Sheffer <desheffer@gmail.com>
@@ -28,6 +28,7 @@ import gobject
 import ConfigParser
 import time
 import urllib2
+import StringIO
 
 CONF_FILE = '/etc/pyccolo/pyccolo.conf'
 PIN_A = 24
@@ -62,7 +63,7 @@ class Display(gobject.GObject):
 
         self.bg = None
         try:
-            pass #self.bg = gtk.gdk.pixbuf_new_from_file('/opt/pyccolo/background.png')
+            self.bg = pygame.image.load('background.png')
         except:
             pass
 
@@ -70,7 +71,8 @@ class Display(gobject.GObject):
         pygame.init()
         pygame.mouse.set_visible(False)
         display = pygame.display.Info()
-        size = (display.current_w, display.current_h)
+        #size = (display.current_w, display.current_h)
+        size = (1000, 1000)
         self.screen = pygame.display.set_mode(size)
 
     def main(self):
@@ -92,16 +94,13 @@ class Display(gobject.GObject):
             pygame.display.flip()
 
     def render(self):
-        #self.screen.fill((0, 0, 0))
-
         # Fill background
         surface = pygame.Surface(self.screen.get_size())
         surface = surface.convert()
         surface.fill((0, 0, 0))
 
-        #if self.bg:
-        #    widget.window.draw_pixbuf(None, self.bg, src_x=0, src_y=0,
-        #                              dest_x=0, dest_y=0)
+        if self.bg:
+            surface.blit(self.bg, self.bg.get_rect())
 
         if not self.playing:
             self.draw_text(surface, 360, 100, 'PAUSED', 28, align=0)
@@ -120,21 +119,37 @@ class Display(gobject.GObject):
             self.draw_text(surface, 340, 225, 'from', 14, align=-1)
             self.draw_text(surface, 350, 225, self.album, 18)
 
-        #if self.art:
-        #    widget.window.draw_pixbuf(None, self.art, src_x=0, src_y=0,
-        #                              dest_x=75, dest_y=125)
+        if self.art:
+            art_pos = self.art.get_rect()
+            art_pos.x = 75
+            art_pos.y = 125
+            surface.blit(self.art, art_pos)
 
         self.screen.blit(surface, (0, 0))
 
     def draw_text(self, surface, x, y, text, size, r=255, g=255, b=255,
-                  face='Ubuntu', align=1, bold=False, italic=False):
+                  bold=False, italic=False, face='Ubuntu', align=1, valign=-1):
         font = pygame.font.SysFont(face, size, bold, italic)
         text_surface = font.render(text, 1, (r, g, b))
+
         text_pos = text_surface.get_rect()
+
+        # Set horizontal alignment.
+        if align == 1:
+            text_pos.left = x
         if align == 0:
-            text_pos.centerx = surface.get_rect().centerx
+            text_pos.centerx = x
         elif align == -1:
-            pass
+            text_pos.right = x
+
+        # Set vertical alignment.
+        if valign == 1:
+            text_pos.top = y
+        if valign == 0:
+            text_pos.centery = y
+        elif valign == -1:
+            text_pos.bottom = y
+
         surface.blit(text_surface, text_pos)
 
     def load_art(self):
@@ -143,16 +158,13 @@ class Display(gobject.GObject):
         art_url = self.art_url
 
         try:
-            content = urllib2.urlopen(art_url).read()
-            #loader = gtk.gdk.PixbufLoader()
-            #loader.set_size(ALBUM_ART_SIZE, ALBUM_ART_SIZE)
-            #loader.write(content)
-            #loader.close()
+            content = urllib2.urlopen(art_url)
+            buf = StringIO.StringIO(content)
         except:
             return
 
-        #if self.art_url == art_url:
-        #    self.art = loader.get_pixbuf()
+        if self.art_url == art_url:
+            self.art = pygame.image.load(buf, art_url)
         self.queue_draw = True
 
     def change_mode(self, controller, mode):
