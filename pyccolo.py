@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python2
 
 """
 Copyright (C) 2012 Doug Sheffer <desheffer@gmail.com>
