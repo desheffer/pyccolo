@@ -1,0 +1,11 @@
+[Unit]
+Description=Pyccolo
+After=multi-user.target
+
+[Service]
+ExecStart=/usr/bin/xinit /opt/pyccolo/pyccolo.py
+KillMode=process
+Restart=always
+
+[Install]
+WantedBy=graphical.target

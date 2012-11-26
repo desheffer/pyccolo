@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python2
 
 """
 Copyright (C) 2012 Doug Sheffer <desheffer@gmail.com>
@@ -29,7 +29,7 @@ import gtk
 import gobject
 import cairo
 
-import RPi.GPIO as GPIO
+#import RPi.GPIO as GPIO
 import ConfigParser
 import time
 import urllib2

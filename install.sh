@@ -19,27 +19,17 @@ CONFIG=/etc/pyccolo/pyccolo.conf
 
 # Install dependencies.
 echo "Installing required dependencies..."
-pacman --noconfirm -S \
+pacman --needed --noconfirm -S \
     python2 \
     gstreamer0.10-python \
     gstreamer0.10-base-plugins \
     gstreamer0.10-good-plugins \
     gstreamer0.10-bad-plugins \
-    pygtk \
     alsa-firmware alsa-utils \
     xf86-video-fbdev xorg-server xorg-xinit \
-    xorg-utils xorg-server-utils
-
-# Enable sound module.
-echo
-echo "snd_bcm2835" > /etc/modules-load.d/snd_bcm2835
-echo "Enabled snd_bcm2835 module for sound card."
-
-# Set default sound device.
-echo
-amixer cset numid=3 1 >/dev/null
-amixer set PCM -- 0 >/dev/null
-echo "Set headphone jack as the default sound device."
+    xorg-utils xorg-server-utils \
+    pygtk \
+    ttf-ubuntu-font-family
 
 # Setup configuration file.
 if [ ! -f $CONFIG ]; then
@@ -64,22 +54,22 @@ cp -r . $INSTALL
 rm -f /boot/config.txt
 cp ./extras/boot__config.txt /boot/config.txt
 
-# Setup Pyccolo to start at boot.
-if [ -z "`grep 'pyccolo' /etc/inittab`" ]; then
-    sed -i 's/^id:.:initdefault:$/id:5:initdefault:/' /etc/inittab
-    echo "x:5:wait:/usr/bin/xinit /opt/pyccolo/pyccolo.py" >> /etc/inittab
-fi
+# Enable sound module.
+echo
+echo "snd_bcm2835" > /etc/modules-load.d/snd_bcm2835.conf
+echo "Enabled snd_bcm2835 module for sound card."
 
-# Disable screensaver and power saving.
-#if [ -z "`grep '^xset -dpms$' /etc/X11/xinit/xinitrc`" ]; then
-#    echo "xset -dpms" >> /etc/X11/xinit/xinitrc
-#fi
-#if [ -z "`grep '^xset s off$' /etc/X11/xinit/xinitrc`" ]; then
-#    echo "xset s off" >> /etc/X11/xinit/xinitrc
-#fi
-#if [ -z "`grep '^xset s noblank$' /etc/X11/xinit/xinitrc`" ]; then
-#    echo "xset s noblank" >> /etc/X11/xinit/xinitrc
-#fi
+# Set default sound device.
+echo
+amixer cset numid=3 1 >/dev/null
+amixer set PCM -- 0 >/dev/null
+echo "Set headphone jack as the default sound device."
+
+# Configure application to start as a service.
+echo
+cp -f extras/pyccolo.service /usr/lib/systemd/system/pyccolo.service
+systemctl enable pyccolo
+echo "Enabled systemd service for Pyccolo."
 
 echo
 echo "Done."
