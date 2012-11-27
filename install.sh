@@ -61,10 +61,12 @@ cp ./extras/boot__config.txt /boot/config.txt
 # Setp RPi.GPIO library.
 GPIO=RPi.GPIO-0.4.1a
 if [ ! -d $GPIO ]; then
+    echo
     wget http://pypi.python.org/packages/source/R/RPi.GPIO/$GPIO.tar.gz
     tar -xf $GPIO.tar.gz
     rm -f $GPIO.tar.gz
     (cd $GPIO && python2 setup.py install)
+    echo "Installed RPi.GPIO library."
 fi
 
 # Enable sound module.
