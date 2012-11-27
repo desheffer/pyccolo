@@ -61,9 +61,6 @@ class Display(gobject.GObject):
         # Intialize screen.
         pygame.init()
         pygame.mouse.set_visible(False)
-        #display = pygame.display.Info()
-        #size = (display.current_w, display.current_h)
-        #self.screen = pygame.display.set_mode(size)
         self.screen = pygame.display.set_mode((320, 240))
 
         # Load images.
@@ -82,7 +79,7 @@ class Display(gobject.GObject):
             events = pygame.event.get()
             for event in events:
                 if event.type == pygame.QUIT:
-                    exit(0)
+                    return
 
             # If nothing has changed then sleep momentarily.
             if not self.queue_draw:
@@ -470,8 +467,17 @@ if __name__ == '__main__':
     while not music.init():
         time.sleep(1);
 
-    # Start controller in its own thread.
-    threading.Thread(target=controller.main).start()
     gobject.threads_init()
 
+    # Start GObject thread.
+    mainloop_thread = threading.Thread(target=gobject.MainLoop().run)
+    mainloop_thread.daemon = True
+    mainloop_thread.start()
+
+    # Start GPIO controller thread.
+    controller_thread = threading.Thread(target=controller.main)
+    controller_thread.daemon = True
+    controller_thread.start()
+
+    # Start user interface loop.
     display.main()
