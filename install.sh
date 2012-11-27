@@ -58,6 +58,15 @@ cp -r pandora $INSTALL
 rm -f /boot/config.txt
 cp ./extras/boot__config.txt /boot/config.txt
 
+# Setp RPi.GPIO library.
+GPIO=RPi.GPIO-0.4.1a
+if [ ! -f $GPIO ]; then
+    wget http://pypi.python.org/packages/source/R/RPi.GPIO/$GPIO.tar.gz
+    tar -xf $GPIO.tar.gz
+    rm -f $GPIO.tar.gz
+    (cd $GPIO && python2 setup.py install)
+fi
+
 # Enable sound module.
 echo
 modprobe snd_bcm2835
@@ -76,15 +85,6 @@ cp -f extras/pyccolo.service /usr/lib/systemd/system/pyccolo.service
 systemctl --system daemon-reload
 systemctl enable pyccolo
 echo "Enabled systemd service for Pyccolo."
-
-# Setp RPi.GPIO library.
-GPIO=RPi.GPIO-0.4.1a
-if [ ! -f $GPIO ]; then
-    wget http://pypi.python.org/packages/source/R/RPi.GPIO/$GPIO.tar.gz
-    tar -xf $GPIO.tar.gz
-    rm -f $GPIO.tar.gz
-    (cd $GPIO && python2 setup.py install)
-fi
 
 echo
 echo "Done."
