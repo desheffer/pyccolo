@@ -83,7 +83,7 @@ if [ ! -f $GPIO ]; then
     wget http://pypi.python.org/packages/source/R/RPi.GPIO/$GPIO.tar.gz
     tar -xf $GPIO.tar.gz
     rm -f $GPIO.tar.gz
-    (cd $GPIO && python setup.py install)
+    (cd $GPIO && python2 setup.py install)
 fi
 
 echo
