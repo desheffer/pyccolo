@@ -19,7 +19,7 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import pygame
 import pandora
-#import RPi.GPIO as GPIO
+import RPi.GPIO as GPIO
 import threading
 import ConfigParser
 import time
@@ -280,29 +280,29 @@ class Music(gobject.GObject):
     def set_station(self, station_id):
         """Set the current station."""
 
-        # Change the station and the song.
-        self.station = self.pandora.get_station_by_id(station_id)
+        # Change the station.
+        stations = {}
+        for station in self.pandora.stations:
+            stations[station.id] = station.name
+            if station.id == station_id:
+                self.station = station
+        self.emit('station-changed', station_id, stations)
 
         # Trigger next song.
         if self.timer:
             self.timer.cancel()
-        self.timer = threading.Timer(0.25, self.next_song) # TODO: Is this needed?
+        self.timer = threading.Timer(0.25, self.next_song)
         self.timer.start()
 
         # Save the new station into the configuration file.
-        try:
-            if not self.config.has_section('Station'):
-                self.config.add_section('Station')
-            self.config.set('Station', 'station_id', station_id)
-            with open(CONF_FILE, 'wb') as config:
-                self.config.write(config)
-        except:
-            pass
-
-        stations = {}
-        for station in self.pandora.stations:
-            stations[station.id] = station.name
-        self.emit('station-changed', station_id, stations)
+        #try:
+        #    if not self.config.has_section('Station'):
+        #        self.config.add_section('Station')
+        #    self.config.set('Station', 'station_id', station_id)
+        #    with open(CONF_FILE, 'wb') as config:
+        #        self.config.write(config)
+        #except:
+        #    pass
 
         return True
 
@@ -480,20 +480,21 @@ if __name__ == '__main__':
     music.connect('state-changed', display.change_state)
 
     # Start user interface loop.
-    display_thread = threading.Thread(target=display.run, args=[mainloop])
+    display_thread = threading.Thread(target=display.run, args=(mainloop,))
     display_thread.daemon = True
     display_thread.start()
 
     # Start radio streaming thread.
-    music_thread = threading.Thread(target=music.run, args=[mainloop])
+    music_thread = threading.Thread(target=music.run, args=(mainloop,))
     music_thread.daemon = True
     music_thread.start()
 
     # Start GPIO controller thread.
-    controller_thread = threading.Thread(target=controller.run, args=[mainloop])
+    controller_thread = threading.Thread(target=controller.run, args=(mainloop,)])
     controller_thread.daemon = True
     controller_thread.start()
 
     # Start GObject thread.
-    mainloop_thread = threading.Thread(target=mainloop.run)
-    mainloop_thread.start()
+    #mainloop_thread = threading.Thread(target=mainloop.run)
+    #mainloop_thread.start()
+    mainloop.run()
