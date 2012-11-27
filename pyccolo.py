@@ -17,8 +17,8 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-from pandora import Pandora
-#import RPi.GPIO as GPIO
+import pandora
+import RPi.GPIO as GPIO
 import pygame
 import pygst
 pygst.require('0.10')
@@ -227,7 +227,7 @@ class Music(gobject.GObject):
         self.timer = None
 
         # Initialize Pandora.
-        self.pandora = Pandora()
+        self.pandora = pandora.Pandora()
 
         # Initialize Gstreamer.
         self.player = gst.element_factory_make('playbin2', 'player')
@@ -421,29 +421,29 @@ class Controller(gobject.GObject):
                           (True, True))
 
     def main(self):
-        """Process user interface events."""
+        """Process GPIO knob and button changes."""
 
         self.emit('change-mode', self.mode)
 
-        #GPIO.setmode(GPIO.BCM)
-        #GPIO.setup(PIN_A, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        #GPIO.setup(PIN_B, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(PIN_A, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        GPIO.setup(PIN_B, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
-        #while True:
-        #    new_a = GPIO.input(PIN_A)
-        #    new_b = GPIO.input(PIN_B)
+        while True:
+            new_a = GPIO.input(PIN_A)
+            new_b = GPIO.input(PIN_B)
 
-        #    if self.clockwise[self.cw_step] == (new_a, new_b):
-        #        self.cw_step = self.cw_step + 1
-        #        if self.cw_step == 4:
-        #            self.cw_step = self.ccw_step = 0
-        #            self.emit('station-up')
+            if self.clockwise[self.cw_step] == (new_a, new_b):
+                self.cw_step = self.cw_step + 1
+                if self.cw_step == 4:
+                    self.cw_step = self.ccw_step = 0
+                    self.emit('station-up')
 
-        #    if self.clockwise[3 - self.ccw_step] == (new_a, new_b):
-        #        self.ccw_step = self.ccw_step + 1
-        #        if self.ccw_step == 4:
-        #            self.cw_step = self.ccw_step = 0
-        #            self.emit('station-down')
+            if self.clockwise[3 - self.ccw_step] == (new_a, new_b):
+                self.ccw_step = self.ccw_step + 1
+                if self.ccw_step == 4:
+                    self.cw_step = self.ccw_step = 0
+                    self.emit('station-down')
 
 gobject.type_register(Display)
 gobject.type_register(Controller)
