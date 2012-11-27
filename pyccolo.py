@@ -17,18 +17,18 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
-import pandora
-import RPi.GPIO as GPIO
 import pygame
-import pygst
-pygst.require('0.10')
-import gst
+import pandora
+#import RPi.GPIO as GPIO
 import threading
-import gobject
 import ConfigParser
 import time
 import urllib2
 import StringIO
+import gobject
+import pygst
+pygst.require('0.10')
+import gst
 
 CONF_FILE = '/etc/pyccolo/pyccolo.conf'
 PIN_A = 24
@@ -71,7 +71,7 @@ class Display(gobject.GObject):
         except:
             pass
 
-    def main(self):
+    def main(self, mainloop):
         """Render the user interface and poll for events in a loop."""
 
         while True:
@@ -79,7 +79,7 @@ class Display(gobject.GObject):
             events = pygame.event.get()
             for event in events:
                 if event.type == pygame.QUIT:
-                    return
+                    mainloop.quit()
 
             # If nothing has changed then sleep momentarily.
             if not self.queue_draw:
@@ -237,6 +237,12 @@ class Music(gobject.GObject):
         bus.connect('message::eos', self.on_gst_eos)
         bus.connect('message::error', self.on_gst_error)
 
+    def main(self, mainloop):
+        """Attempt to play radio until a connection is established."""
+
+        while not self.init():
+            time.sleep(1)
+
     def init(self, username=None, password=None):
         """Connect to radio and begin playing music."""
 
@@ -276,7 +282,7 @@ class Music(gobject.GObject):
         # Trigger next song.
         if self.timer:
             self.timer.cancel()
-        self.timer = threading.Timer(0.25, self.next_song)
+        self.timer = threading.Timer(0.25, self.next_song) # TODO: Is this needed?
         self.timer.start()
 
         # Save the new station into the configuration file.
@@ -420,7 +426,7 @@ class Controller(gobject.GObject):
                           (True, False),
                           (True, True))
 
-    def main(self):
+    def main(self, mainloop):
         """Process GPIO knob and button changes."""
 
         self.emit('change-mode', self.mode)
@@ -445,14 +451,19 @@ class Controller(gobject.GObject):
                     self.cw_step = self.ccw_step = 0
                     self.emit('station-down')
 
+            time.sleep(0.01)
+
 gobject.type_register(Display)
 gobject.type_register(Controller)
 gobject.type_register(Music)
 
 if __name__ == '__main__':
+    gobject.threads_init()
+
     display = Display()
     controller = Controller()
     music = Music()
+    mainloop = gobject.MainLoop()
 
     # Connect signals between components.
     controller.connect('change-mode', display.change_mode)
@@ -464,20 +475,22 @@ if __name__ == '__main__':
     music.connect('song-changed', display.change_song)
     music.connect('state-changed', display.change_state)
 
-    while not music.init():
-        time.sleep(1);
+    # Start user interface loop.
+    display_thread = threading.Thread(target=display.main, args=[mainloop])
+    display_thread.daemon = True
+    display_thread.start()
 
-    gobject.threads_init()
-
-    # Start GObject thread.
-    mainloop_thread = threading.Thread(target=gobject.MainLoop().run)
-    mainloop_thread.daemon = True
-    mainloop_thread.start()
+    # Start radio streaming thread.
+    music_thread = threading.Thread(target=music.main, args=[mainloop])
+    music_thread.daemon = True
+    music_thread.start()
 
     # Start GPIO controller thread.
-    controller_thread = threading.Thread(target=controller.main)
+    controller_thread = threading.Thread(target=controller.main,
+                                         args=[mainloop])
     controller_thread.daemon = True
     controller_thread.start()
 
-    # Start user interface loop.
-    display.main()
+    # Start GObject thread.
+    mainloop_thread = threading.Thread(target=mainloop.run)
+    mainloop_thread.start()
