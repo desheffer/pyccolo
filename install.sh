@@ -20,7 +20,9 @@ CONFIG=/etc/pyccolo/pyccolo.conf
 # Install dependencies.
 echo "Installing required dependencies..."
 pacman --needed --noconfirm -S \
+    base-devel \
     python2 \
+    wiringpi \
     gstreamer0.10-python \
     gstreamer0.10-base-plugins \
     gstreamer0.10-good-plugins \
@@ -46,7 +48,11 @@ fi
 
 # Copy application directory.
 rm -rf $INSTALL
-cp -r . $INSTALL
+mkdir -p $INSTALL
+cp pyccolo.py $INSTALL
+cp start.sh $INSTALL
+cp background.png $INSTALL
+cp -r pandora $INSTALL
 
 # Copy boot configuration.
 rm -f /boot/config.txt
@@ -70,6 +76,15 @@ cp -f extras/pyccolo.service /usr/lib/systemd/system/pyccolo.service
 systemctl --system daemon-reload
 systemctl enable pyccolo
 echo "Enabled systemd service for Pyccolo."
+
+# Setp RPi.GPIO library.
+GPIO=RPi.GPIO-0.4.1a
+if [ ! -f $GPIO ]; then
+    wget http://pypi.python.org/packages/source/R/RPi.GPIO/$GPIO.tar.gz
+    tar -xf $GPIO.tar.gz
+    rm -f $GPIO.tar.gz
+    (cd $GPIO && python setup.py install)
+fi
 
 echo
 echo "Done."
