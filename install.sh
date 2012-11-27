@@ -60,7 +60,7 @@ cp ./extras/boot__config.txt /boot/config.txt
 
 # Setp RPi.GPIO library.
 GPIO=RPi.GPIO-0.4.1a
-if [ ! -f $GPIO ]; then
+if [ ! -d $GPIO ]; then
     wget http://pypi.python.org/packages/source/R/RPi.GPIO/$GPIO.tar.gz
     tar -xf $GPIO.tar.gz
     rm -f $GPIO.tar.gz
