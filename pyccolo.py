@@ -71,7 +71,7 @@ class Display(gobject.GObject):
         except:
             pass
 
-    def main(self, mainloop):
+    def run(self, mainloop):
         """Render the user interface and poll for events in a loop."""
 
         while True:
@@ -237,26 +237,30 @@ class Music(gobject.GObject):
         bus.connect('message::eos', self.on_gst_eos)
         bus.connect('message::error', self.on_gst_error)
 
-    def main(self, mainloop):
-        """Attempt to play radio until a connection is established."""
-
-        while not self.init():
-            time.sleep(1)
-
-    def init(self, username=None, password=None):
-        """Connect to radio and begin playing music."""
+    def run(self, mainloop):
+        """Attempt to play radio."""
 
         self.config = ConfigParser.ConfigParser()
         self.config.read(CONF_FILE)
 
-        if not username or not password:
-            # Read in configuration details.
-            try:
-                username = self.config.get('User', 'username')
-                password = self.config.get('User', 'password')
-            except:
-                print 'Failed to load username and password from configuration file.'
-                exit(1)
+        # Read in configuration details.
+        try:
+            username = self.config.get('User', 'username')
+            password = self.config.get('User', 'password')
+        except:
+            print 'Failed to load username and password from configuration file.'
+            mainloop.quit()
+
+        # Try to initiate a connection.
+        try:
+            while not self.init(username, password):
+                time.sleep(1)
+        except:
+            print 'Radio connection failed.'
+            mainloop.quit()
+
+    def init(self, username, password):
+        """Connect to radio and begin playing music."""
 
         try:
             self.pandora.connect(username, password)
@@ -426,8 +430,8 @@ class Controller(gobject.GObject):
                           (True, False),
                           (True, True))
 
-    def main(self, mainloop):
-        """Process GPIO knob and button changes."""
+    def run(self, mainloop):
+        """Process GPIO knob and button changes in a loop."""
 
         self.emit('change-mode', self.mode)
 
@@ -476,18 +480,17 @@ if __name__ == '__main__':
     music.connect('state-changed', display.change_state)
 
     # Start user interface loop.
-    display_thread = threading.Thread(target=display.main, args=[mainloop])
+    display_thread = threading.Thread(target=display.run, args=[mainloop])
     display_thread.daemon = True
     display_thread.start()
 
     # Start radio streaming thread.
-    music_thread = threading.Thread(target=music.main, args=[mainloop])
+    music_thread = threading.Thread(target=music.run, args=[mainloop])
     music_thread.daemon = True
     music_thread.start()
 
     # Start GPIO controller thread.
-    controller_thread = threading.Thread(target=controller.main,
-                                         args=[mainloop])
+    controller_thread = threading.Thread(target=controller.run, args=[mainloop])
     controller_thread.daemon = True
     controller_thread.start()
 
