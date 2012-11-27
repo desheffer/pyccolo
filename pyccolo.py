@@ -490,7 +490,7 @@ if __name__ == '__main__':
     music_thread.start()
 
     # Start GPIO controller thread.
-    controller_thread = threading.Thread(target=controller.run, args=(mainloop,)])
+    controller_thread = threading.Thread(target=controller.run, args=(mainloop,))
     controller_thread.daemon = True
     controller_thread.start()
 
