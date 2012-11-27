@@ -35,8 +35,6 @@ PIN_A = 24
 PIN_B = 25
 PIN_C = 23
 
-ALBUM_ART_SIZE = (192, 192)
-
 #  ____  _           _
 # |  _ \(_)___ _ __ | | __ _ _   _
 # | | | | / __| '_ \| |/ _` | | | |
@@ -63,9 +61,10 @@ class Display(gobject.GObject):
         # Intialize screen.
         pygame.init()
         pygame.mouse.set_visible(False)
-        display = pygame.display.Info()
-        size = (display.current_w, display.current_h)
-        self.screen = pygame.display.set_mode(size)
+        #display = pygame.display.Info()
+        #size = (display.current_w, display.current_h)
+        #self.screen = pygame.display.set_mode(size)
+        self.screen = pygame.display.set_mode((320, 240))
 
         # Load images.
         self.background_img = None
@@ -106,28 +105,25 @@ class Display(gobject.GObject):
         if self.background_img:
             surface.blit(self.background_img, self.background_img.get_rect())
 
-        if not self.playing:
-            self.draw_text(surface, 360, 100, 'PAUSED', 28, align=0)
-
         if self.mode == Controller.MODE_STATION:
-            self.draw_text(surface, 360, 425, '<- Station ->', 20, align=0)
+            if self.station:
+                station = self.stations[self.station]
+                self.draw_text(surface, 160, 220, 'Station: %s' % station, 16,
+                               align=0)
 
-        if self.station:
-            station = self.stations[self.station]
-            self.draw_text(surface, 360, 385, station, 24, align=0)
+        if self.playing:
+            if self.track:
+                self.draw_text(surface, 160, 40, self.track, 22, align=0, valign=0)
+                self.draw_text(surface, 130, 120, self.artist, 18, bold=True)
+                self.draw_text(surface, 130, 150, self.album, 18)
 
-        if self.track:
-            self.draw_text(surface, 360, 80, self.track, 28, align=0)
-            self.draw_text(surface, 340, 175, 'by', 14, align=-1)
-            self.draw_text(surface, 350, 175, self.artist, 20, bold=True)
-            self.draw_text(surface, 340, 225, 'from', 14, align=-1)
-            self.draw_text(surface, 350, 225, self.album, 18)
-
-        if self.art_img:
-            art_pos = self.art_img.get_rect()
-            art_pos.x = 75
-            art_pos.y = 125
-            surface.blit(self.art_img, art_pos)
+            if self.art_img:
+                art_pos = self.art_img.get_rect()
+                art_pos.x = 10
+                art_pos.y = 80
+                surface.blit(self.art_img, art_pos)
+        else:
+            self.draw_text(surface, 160, 120, 'PAUSED', 22, align=0, valign=0)
 
         self.screen.blit(surface, (0, 0))
 
@@ -167,8 +163,7 @@ class Display(gobject.GObject):
             content = urllib2.urlopen(art_url).read()
             buf = StringIO.StringIO(content)
             art_surface = pygame.image.load(buf, art_url)
-            art_surface = pygame.transform.smoothscale(art_surface,
-                                                       ALBUM_ART_SIZE)
+            art_surface = pygame.transform.smoothscale(art_surface, (100, 100))
         except:
             return
 

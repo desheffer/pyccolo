@@ -1,3 +1,6 @@
 arm_freq=800
 gpu_freq=250
+sdtv_aspect=3
 disable_overscan=1
+framebuffer_width=320
+framebuffer_height=240
