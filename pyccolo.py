@@ -54,7 +54,7 @@ class Display(gobject.GObject):
         self.mode = None
         self.stations = []
         self.station = None
-        self.song = ('', '', '')
+        self.song = None
         self.art_url = ''
         self.playing = False
 
@@ -108,23 +108,21 @@ class Display(gobject.GObject):
                 self.draw_text(surface, 160, 220, 'Station: %s' % station, 16,
                                align=0)
 
-        if self.playing:
-            if self.song:
-                self.draw_text(surface, 160, 40, self.song[2], 22,
-                               align=0, valign=0)
-                self.draw_text(surface, 130, 120, self.song[0], 18, bold=True)
-                self.draw_text(surface, 130, 150, self.song[1], 18)
-            else:
-                self.draw_text(surface, 160, 120, 'Loading', 22,
-                               align=0, valign=0)
+        if not self.song:
+            self.draw_text(surface, 160, 120, 'Loading', 22, align=0, valign=0)
+        elif not self.playing:
+            self.draw_text(surface, 160, 120, 'PAUSED', 22, align=0, valign=0)
+        else:
+            self.draw_text(surface, 160, 40, self.song[2], 22,
+                           align=0, valign=0)
+            self.draw_text(surface, 130, 120, self.song[0], 18, bold=True)
+            self.draw_text(surface, 130, 150, self.song[1], 18)
 
             if self.art_img:
                 art_pos = self.art_img.get_rect()
                 art_pos.x = 10
                 art_pos.y = 80
                 surface.blit(self.art_img, art_pos)
-        else:
-            self.draw_text(surface, 160, 120, 'PAUSED', 22, align=0, valign=0)
 
         self.screen.blit(surface, (0, 0))
 
@@ -158,8 +156,6 @@ class Display(gobject.GObject):
     def load_art(self):
         """Load album art for the current song."""
 
-        self.art_img = None
-
         art_url = self.art_url
 
         try:
@@ -189,13 +185,17 @@ class Display(gobject.GObject):
 
         self.stations = stations
         self.station = station
+        self.song = None
+        self.art_url = None
+        self.art_img = None
         self.queue_draw = True
 
-    def change_song(self, music, artist, album, track, art):
+    def change_song(self, music, artist, album, track, art_url):
         """Change the song name that is displayed."""
 
         self.song = (artist, album, track)
-        self.art_url = art
+        self.art_url = art_url
+        self.art_img = None
         threading.Thread(target=self.load_art).start()
         self.queue_draw = True
 
