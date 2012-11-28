@@ -108,15 +108,16 @@ class Display(gobject.GObject):
                 self.draw_text(surface, 160, 220, 'Station: %s' % station, 16,
                                align=0)
 
-        if not self.song:
+        song = self.song
+        if not song:
             self.draw_text(surface, 160, 120, 'Loading', 22, align=0, valign=0)
         elif not self.playing:
             self.draw_text(surface, 160, 120, 'PAUSED', 22, align=0, valign=0)
         else:
-            self.draw_text(surface, 160, 40, self.song[2], 22,
+            self.draw_text(surface, 160, 40, song[2], 22,
                            align=0, valign=0)
-            self.draw_text(surface, 130, 120, self.song[0], 18, bold=True)
-            self.draw_text(surface, 130, 150, self.song[1], 18)
+            self.draw_text(surface, 130, 120, song[0], 18, bold=True)
+            self.draw_text(surface, 130, 150, song[1], 18)
 
             if self.art_img:
                 art_pos = self.art_img.get_rect()
