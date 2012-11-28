@@ -171,7 +171,7 @@ class Display(gobject.GObject):
         except:
             # Create blank album art image.
             art_surface = pygame.Surface(ART_SIZE)
-            art_surface = surface.convert()
+            art_surface = art_surface.convert()
             art_surface.fill((32, 32, 32))
 
         if self.art_url == art_url:
@@ -187,6 +187,7 @@ class Display(gobject.GObject):
     def change_station(self, music, station, stations):
         """Change the station list that is displayed."""
 
+        self.playing = None
         self.stations = stations
         self.station = station
         self.queue_draw = True
