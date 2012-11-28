@@ -136,7 +136,7 @@ class Display(gobject.GObject):
         # Set horizontal alignment.
         if align == 1:
             text_pos.left = x
-        if align == 0:
+        elif align == 0:
             text_pos.centerx = x
         elif align == -1:
             text_pos.right = x
@@ -144,7 +144,7 @@ class Display(gobject.GObject):
         # Set vertical alignment.
         if valign == 1:
             text_pos.top = y
-        if valign == 0:
+        elif valign == 0:
             text_pos.centery = y
         elif valign == -1:
             text_pos.bottom = y
@@ -224,7 +224,6 @@ class Music(gobject.GObject):
         self.playlists = dict()
         self.song = None
         self.playing = False
-        self.timer = None
 
         # Initialize Pandora.
         self.pandora = pandora.Pandora()
@@ -238,8 +237,6 @@ class Music(gobject.GObject):
         bus.connect('message::error', self.on_gst_error)
 
     def run(self, mainloop):
-        """Attempt to play radio."""
-
         self.config = ConfigParser.ConfigParser()
         self.config.read(CONF_FILE)
 
@@ -289,22 +286,34 @@ class Music(gobject.GObject):
         self.emit('station-changed', station_id, stations)
 
         # Trigger next song.
-        if self.timer:
-            self.timer.cancel()
-        self.timer = threading.Timer(0.25, self.next_song)
-        self.timer.start()
+        kwargs = {'last_station_id': station_id}
+        threading.Thread(target=self.next_song, kwargs=kwargs).start()
 
         # Save the new station into the configuration file.
-        #try:
-        #    if not self.config.has_section('Station'):
-        #        self.config.add_section('Station')
-        #    self.config.set('Station', 'station_id', station_id)
-        #    with open(CONF_FILE, 'wb') as config:
-        #        self.config.write(config)
-        #except:
-        #    pass
+        kwargs = {'last_station_id': station_id, 'delay': 10}
+        threading.Thread(target=self.save_station, kwargs=kwargs).start()
 
         return True
+
+    def save_station(self, last_station_id=None, delay=0):
+        """Save the currently tuned station."""
+
+        # Allow for quick user interface scrolling.
+        time.sleep(delay)
+
+        # Check that station has not changed.
+        if last_station_id and last_station_id != self.station.id:
+            return False
+
+        # Save configuration.
+        try:
+            if not self.config.has_section('Station'):
+                self.config.add_section('Station')
+            self.config.set('Station', 'station_id', station_id)
+            with open(CONF_FILE, 'wb') as config:
+                self.config.write(config)
+        except:
+            pass
 
     def play(self):
         """Play the currently paused music track."""
@@ -349,15 +358,18 @@ class Music(gobject.GObject):
         else:
             self.play()
 
-    def next_song(self, controller=None):
+    def next_song(self, controller=None, last_station_id=None):
         """Skip the current music track."""
 
-        if self.timer:
-            self.timer.cancel()
-            self.timer = None
+        # Allow for quick user interface scrolling.
+        time.sleep(0.25)
+
+        # Check that station has not changed.
+        station = self.station
+        if last_station_id and last_station_id != station.id:
+            return False
 
         # Get current station settings.
-        station = self.station
         playlist = None
         if station.id in self.playlists:
             playlist = self.playlists[station.id]
@@ -365,7 +377,10 @@ class Music(gobject.GObject):
         self.player.set_state(gst.STATE_NULL)
 
         # Fill the playlist.
-        if not playlist:
+        if playlist == True:
+            return False
+        elif not playlist:
+            self.playlists[station.id] = True
             playlist = station.get_playlist()
 
         # Play the next song in the playlist.
@@ -455,7 +470,7 @@ class Controller(gobject.GObject):
                     self.cw_step = self.ccw_step = 0
                     self.emit('station-down')
 
-            time.sleep(0.01)
+            time.sleep(0.001)
 
 gobject.type_register(Display)
 gobject.type_register(Controller)
@@ -494,7 +509,4 @@ if __name__ == '__main__':
     controller_thread.daemon = True
     controller_thread.start()
 
-    # Start GObject thread.
-    #mainloop_thread = threading.Thread(target=mainloop.run)
-    #mainloop_thread.start()
     mainloop.run()
