@@ -35,6 +35,8 @@ PIN_A = 24
 PIN_B = 25
 PIN_C = 23
 
+ART_SIZE = (100, 100)
+
 #  ____  _           _
 # |  _ \(_)___ _ __ | | __ _ _   _
 # | | | | / __| '_ \| |/ _` | | | |
@@ -56,7 +58,7 @@ class Display(gobject.GObject):
         self.album = ''
         self.track = ''
         self.art_url = ''
-        self.playing = False
+        self.playing = None
 
         # Intialize screen.
         pygame.init()
@@ -108,7 +110,7 @@ class Display(gobject.GObject):
                 self.draw_text(surface, 160, 220, 'Station: %s' % station, 16,
                                align=0)
 
-        if self.playing:
+        if self.playing == True:
             if self.track:
                 self.draw_text(surface, 160, 40, self.track, 22, align=0, valign=0)
                 self.draw_text(surface, 130, 120, self.artist, 18, bold=True)
@@ -119,8 +121,10 @@ class Display(gobject.GObject):
                 art_pos.x = 10
                 art_pos.y = 80
                 surface.blit(self.art_img, art_pos)
-        else:
+        elif self.playing == False:
             self.draw_text(surface, 160, 120, 'PAUSED', 22, align=0, valign=0)
+        else:
+            self.draw_text(surface, 160, 120, 'Loading', 22, align=0, valign=0)
 
         self.screen.blit(surface, (0, 0))
 
@@ -152,17 +156,23 @@ class Display(gobject.GObject):
         surface.blit(text_surface, text_pos)
 
     def load_art(self):
+        """Load album art for the current song."""
+
         self.art_img = None
 
         art_url = self.art_url
 
         try:
+            # Load album art image.
             content = urllib2.urlopen(art_url).read()
             buf = StringIO.StringIO(content)
             art_surface = pygame.image.load(buf, art_url)
-            art_surface = pygame.transform.smoothscale(art_surface, (100, 100))
+            art_surface = pygame.transform.smoothscale(art_surface, ART_SIZE)
         except:
-            return
+            # Create blank album art image.
+            art_surface = pygame.Surface(ART_SIZE)
+            art_surface = surface.convert()
+            art_surface.fill((32, 32, 32))
 
         if self.art_url == art_url:
             self.art_img = art_surface.convert()
@@ -309,7 +319,7 @@ class Music(gobject.GObject):
         try:
             if not self.config.has_section('Station'):
                 self.config.add_section('Station')
-            self.config.set('Station', 'station_id', station_id)
+            self.config.set('Station', 'station_id', last_station_id)
             with open(CONF_FILE, 'wb') as config:
                 self.config.write(config)
         except:
