@@ -54,11 +54,9 @@ class Display(gobject.GObject):
         self.mode = None
         self.stations = []
         self.station = None
-        self.artist = ''
-        self.album = ''
-        self.track = ''
+        self.song = ('', '', '')
         self.art_url = ''
-        self.playing = None
+        self.playing = False
 
         # Intialize screen.
         pygame.init()
@@ -110,21 +108,23 @@ class Display(gobject.GObject):
                 self.draw_text(surface, 160, 220, 'Station: %s' % station, 16,
                                align=0)
 
-        if self.playing == True:
-            if self.track:
-                self.draw_text(surface, 160, 40, self.track, 22, align=0, valign=0)
-                self.draw_text(surface, 130, 120, self.artist, 18, bold=True)
-                self.draw_text(surface, 130, 150, self.album, 18)
+        if self.playing:
+            if self.song:
+                self.draw_text(surface, 160, 40, self.song[2], 22,
+                               align=0, valign=0)
+                self.draw_text(surface, 130, 120, self.song[0], 18, bold=True)
+                self.draw_text(surface, 130, 150, self.song[1], 18)
+            else:
+                self.draw_text(surface, 160, 120, 'Loading', 22,
+                               align=0, valign=0)
 
             if self.art_img:
                 art_pos = self.art_img.get_rect()
                 art_pos.x = 10
                 art_pos.y = 80
                 surface.blit(self.art_img, art_pos)
-        elif self.playing == False:
-            self.draw_text(surface, 160, 120, 'PAUSED', 22, align=0, valign=0)
         else:
-            self.draw_text(surface, 160, 120, 'Loading', 22, align=0, valign=0)
+            self.draw_text(surface, 160, 120, 'PAUSED', 22, align=0, valign=0)
 
         self.screen.blit(surface, (0, 0))
 
@@ -187,7 +187,6 @@ class Display(gobject.GObject):
     def change_station(self, music, station, stations):
         """Change the station list that is displayed."""
 
-        self.playing = None
         self.stations = stations
         self.station = station
         self.queue_draw = True
@@ -195,9 +194,7 @@ class Display(gobject.GObject):
     def change_song(self, music, artist, album, track, art):
         """Change the song name that is displayed."""
 
-        self.artist = artist
-        self.album = album
-        self.track = track
+        self.song = (artist, album, track)
         self.art_url = art
         threading.Thread(target=self.load_art).start()
         self.queue_draw = True
