@@ -17,9 +17,9 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
+import sys
 import pygame
 import pandora
-import RPi.GPIO as GPIO
 import threading
 import ConfigParser
 import time
@@ -30,11 +30,18 @@ import pygst
 pygst.require('0.10')
 import gst
 
+try:
+    import RPi.GPIO as GPIO
+except:
+    pass
+
 CONF_FILE = '/etc/pyccolo/pyccolo.conf'
 PIN_A = 24
 PIN_B = 25
 PIN_C = 23
 
+SCREEN_WIDTH = 320
+SCREEN_HEIGHT = 240
 ART_SIZE = (100, 100)
 
 #  ____  _           _
@@ -51,17 +58,21 @@ class Display(gobject.GObject):
         gobject.GObject.__init__(self)
 
         self.queue_draw = True
-        self.mode = None
+
         self.stations = []
         self.station = None
         self.song = None
         self.art_url = ''
         self.playing = False
 
+        self.mode = None
+        self.mode_active = False
+        self.mode_timeout_timer = None
+
         # Intialize screen.
         pygame.init()
         pygame.mouse.set_visible(False)
-        self.screen = pygame.display.set_mode((320, 240))
+        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 
         # Load images.
         self.background_img = None
@@ -87,34 +98,55 @@ class Display(gobject.GObject):
                 continue
             self.queue_draw = False
 
+            # Fill background
+            surface = pygame.Surface(self.screen.get_size())
+            surface = surface.convert()
+            surface.fill((0, 0, 0))
+
             # Render the user interface.
-            self.render()
+            self.render(surface)
+            self.screen.blit(surface, (0, 0))
             pygame.display.flip()
 
-    def render(self):
+    def render(self, surface):
         """Render user interface elements."""
 
-        # Fill background
-        surface = pygame.Surface(self.screen.get_size())
-        surface = surface.convert()
-        surface.fill((0, 0, 0))
+        # Handle special modes.
+        if self.mode_active:
+            # Station selection mode.
+            if self.mode == Controller.MODE_STATION:
+                self.draw_text(surface, SCREEN_WIDTH / 2, 20, 'SELECT STATION', 20, align=0)
+
+                row_range = (4, -4)
+                row_count = abs(row_range[1] - row_range[0]) + 1
+                row_height = SCREEN_HEIGHT / (row_count + 1)
+
+                for num in range(0, len(self.stations)):
+                    station = self.station + row_range[0] + num
+                    if station >= 0 and station < len(self.stations):
+                        self.draw_text(surface, 10, row_height * (num + 1),
+                                       self.stations[station], 14)
+            return
 
         if self.background_img:
             surface.blit(self.background_img, self.background_img.get_rect())
 
-        if self.mode == Controller.MODE_STATION:
-            if self.station:
-                station = self.stations[self.station]
-                self.draw_text(surface, 160, 220, 'Station: %s' % station, 16,
-                               align=0)
+        # Display station information.
+        if self.station:
+            station = self.stations[self.station]
+            self.draw_text(surface, SCREEN_WIDTH / 2, 220,
+                           'Station: %s' % station, 16, align=0)
 
+        # Display song information.
         song = self.song
         if not song:
-            self.draw_text(surface, 160, 120, 'Loading', 22, align=0, valign=0)
+            self.draw_text(surface, SCREEN_WIDTH / 2, 120, 'Loading', 22,
+                           align=0, valign=0)
         elif not self.playing:
-            self.draw_text(surface, 160, 120, 'PAUSED', 22, align=0, valign=0)
+            self.draw_text(surface, SCREEN_WIDTH / 2, 120, 'PAUSED', 22,
+                           align=0, valign=0)
         else:
-            self.draw_text(surface, 160, 40, song[2], 22,
+            self.draw_text(surface, SCREEN_WIDTH / 2, 40, song[2], 22,
                            align=0, valign=0)
             self.draw_text(surface, 130, 120, song[0], 18, bold=True)
             self.draw_text(surface, 130, 150, song[1], 18)
@@ -124,8 +156,6 @@ class Display(gobject.GObject):
                 art_pos.x = 10
                 art_pos.y = 80
                 surface.blit(self.art_img, art_pos)
-
-        self.screen.blit(surface, (0, 0))
 
     def draw_text(self, surface, x, y, text, size, r=255, g=255, b=255,
                   bold=False, italic=False, face='Ubuntu', align=1, valign=-1):
@@ -179,6 +209,14 @@ class Display(gobject.GObject):
         """Change the current user interface control mode."""
 
         self.mode = mode
+        self.mode_active = False
+        self.queue_draw = True
+
+    def mode_timeout(self):
+        """Disable the current mode."""
+
+        self.mode_timeout_timer = None
+        self.mode_active = False
         self.queue_draw = True
 
     def change_station(self, music, station, stations):
@@ -189,6 +227,15 @@ class Display(gobject.GObject):
         self.song = None
         self.art_url = None
         self.art_img = None
+
+        if self.mode == Controller.MODE_STATION:
+            self.mode_active = True
+
+            if self.mode_timeout_timer:
+                self.mode_timeout_timer.cancel()
+            self.mode_timeout_timer = threading.Timer(2, self.mode_timeout)
+            self.mode_timeout_timer.start()
+
         self.queue_draw = True
 
     def change_song(self, music, artist, album, track, art_url):
@@ -216,7 +263,7 @@ class Display(gobject.GObject):
 class Music(gobject.GObject):
     __gsignals__ = {
         'station-changed': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE,
-                            (gobject.TYPE_STRING, gobject.TYPE_PYOBJECT,)),
+                            (gobject.TYPE_INT, gobject.TYPE_PYOBJECT,)),
         'song-changed': (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE,
                          (gobject.TYPE_STRING, gobject.TYPE_STRING,
                           gobject.TYPE_STRING, gobject.TYPE_STRING,)),
@@ -231,11 +278,15 @@ class Music(gobject.GObject):
 
         self.station = None
         self.playlists = dict()
+        self.last_position = dict()
         self.song = None
         self.playing = False
+        self.next_song_timer = None
+        self.save_timer = None
 
         # Initialize Pandora.
         self.pandora = pandora.Pandora()
+        self.pandora.set_audio_format('mp3')
 
         # Initialize Gstreamer.
         self.player = gst.element_factory_make('playbin2', 'player')
@@ -262,7 +313,7 @@ class Music(gobject.GObject):
             while not self.init(username, password):
                 time.sleep(1)
         except:
-            print 'Radio connection failed.'
+            print 'Radio connection failed:', sys.exc_info()
             mainloop.quit()
 
     def init(self, username, password):
@@ -286,39 +337,54 @@ class Music(gobject.GObject):
     def set_station(self, station_id):
         """Set the current station."""
 
-        # Change the station.
-        stations = {}
+        # Find the new station.
+        new_station = self.pandora.get_station_by_id(station_id)
+        if not new_station:
+            return False
+
+        # Store player position.
+        if self.station and self.player.get_state()[1] != gst.STATE_NULL:
+            try:
+                position = self.player.query_position(gst.FORMAT_TIME)
+                self.last_position[self.station.id] = position[0]
+            except:
+                pass
+
+        self.station = new_station
+
+        # Emit the changed signal.
+        stations = []
+        station_index = None
         for station in self.pandora.stations:
-            stations[station.id] = station.name
             if station.id == station_id:
-                self.station = station
-        self.emit('station-changed', station_id, stations)
+                station_index = len(stations)
+            stations.append(station.name)
+        self.emit('station-changed', station_index, stations)
 
         # Trigger next song.
-        kwargs = {'last_station_id': station_id}
-        threading.Thread(target=self.next_song, kwargs=kwargs).start()
+        if self.next_song_timer:
+            self.next_song_timer.cancel()
+        next_song_timer = threading.Timer(0.25, self.queue_song)
+        next_song_timer.start()
 
         # Save the new station into the configuration file.
-        kwargs = {'last_station_id': station_id, 'delay': 10}
-        threading.Thread(target=self.save_station, kwargs=kwargs).start()
+        if self.save_timer:
+            self.save_timer.cancel()
+        self.save_timer = threading.Timer(10, self.save_station)
+        self.save_timer.start()
 
         return True
 
-    def save_station(self, last_station_id=None, delay=0):
+    def save_station(self):
         """Save the currently tuned station."""
 
-        # Allow for quick user interface scrolling.
-        time.sleep(delay)
-
-        # Check that station has not changed.
-        if last_station_id and last_station_id != self.station.id:
-            return False
+        self.save_timer = None
 
         # Save configuration.
         try:
             if not self.config.has_section('Station'):
                 self.config.add_section('Station')
-            self.config.set('Station', 'station_id', last_station_id)
+            self.config.set('Station', 'station_id', self.station.id)
             with open(CONF_FILE, 'wb') as config:
                 self.config.write(config)
         except:
@@ -367,21 +433,26 @@ class Music(gobject.GObject):
         else:
             self.play()
 
-    def next_song(self, controller=None, last_station_id=None):
+    def skip_song(self, controller=None):
         """Skip the current music track."""
 
-        # Allow for quick user interface scrolling.
-        time.sleep(0.25)
+        self.queue_song(skip=True)
 
-        # Check that station has not changed.
+    def queue_song(self, skip=False):
+        """Queue the next music track."""
+
+        self.next_song_timer = None
+
         station = self.station
-        if last_station_id and last_station_id != station.id:
-            return False
 
         # Get current station settings.
         playlist = None
         if station.id in self.playlists:
             playlist = self.playlists[station.id]
+
+        # Skip most recent song.
+        if skip and playlist:
+            playlist.pop(0)
 
         self.player.set_state(gst.STATE_NULL)
 
@@ -394,9 +465,19 @@ class Music(gobject.GObject):
 
         # Play the next song in the playlist.
         if station == self.station:
-            self.song = playlist.pop(0)
+            self.song = playlist[0]
             self.player.set_property('uri', self.song.audioUrl)
+
             self.play()
+
+            # Restore last player position.
+            if station.id in self.last_position:
+                # Block until the player has changed state.
+                self.player.get_state()
+
+                self.player.seek_simple(gst.FORMAT_TIME, gst.SEEK_FLAG_FLUSH,
+                                        self.last_position[station.id])
+                del(self.last_position[station.id])
 
             self.emit('song-changed', self.song.artist, self.song.album,
                       self.song.title, self.song.artRadio)
@@ -408,7 +489,7 @@ class Music(gobject.GObject):
     def on_gst_eos(self, bus, message):
         """Begin the next track after the current track has completed."""
 
-        self.next_song()
+        self.queue_song(skip=True)
 
     def on_gst_error(self, bus, message):
         """Report Gstreamer errors."""
@@ -416,7 +497,7 @@ class Music(gobject.GObject):
         self.playing = False
         err, debug = message.parse_error()
         print 'Gstreamer Error: %s, %s, %s' % (err, debug, err.code)
-        self.next_song()
+        self.queue_song()
 
 #   ____            _             _ _
 #  / ___|___  _ __ | |_ _ __ ___ | | | ___ _ __
@@ -440,15 +521,11 @@ class Controller(gobject.GObject):
     MODE_VOLUME = 2
 
     def __init__(self):
-        """Setup GPIO pins for input."""
+        """Setup controller."""
 
         gobject.GObject.__init__(self)
 
-        self.mode = Controller.MODE_STATION
         self.click_time = None
-
-        self.ccw_step = 0
-        self.cw_step = 0
         self.clockwise = ((False, True),
                           (False, False),
                           (True, False),
@@ -457,29 +534,56 @@ class Controller(gobject.GObject):
     def run(self, mainloop):
         """Process GPIO knob and button changes in a loop."""
 
-        self.emit('change-mode', self.mode)
+        mode = Controller.MODE_STATION
+        self.emit('change-mode', mode)
 
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(PIN_A, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.setup(PIN_B, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        # Read from GPIO.
+        try:
+            GPIO.setmode(GPIO.BCM)
+            GPIO.setup(PIN_A, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+            GPIO.setup(PIN_B, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
-        while True:
-            new_a = GPIO.input(PIN_A)
-            new_b = GPIO.input(PIN_B)
+            cw_step = ccw_step = 0
 
-            if self.clockwise[self.cw_step] == (new_a, new_b):
-                self.cw_step = self.cw_step + 1
-                if self.cw_step == 4:
-                    self.cw_step = self.ccw_step = 0
+            while True:
+                new_a = GPIO.input(PIN_A)
+                new_b = GPIO.input(PIN_B)
+
+                if self.clockwise[cw_step] == (new_a, new_b):
+                    cw_step = cw_step + 1
+                    if cw_step == 4:
+                        cw_step = ccw_step = 0
+                        self.emit('station-up')
+
+                if self.clockwise[3 - ccw_step] == (new_a, new_b):
+                    ccw_step = ccw_step + 1
+                    if ccw_step == 4:
+                        cw_step = ccw_step = 0
+                        self.emit('station-down')
+
+                time.sleep(0.001)
+
+        # Fallback to keyboard mode.
+        except:
+            old_keys = pygame.key.get_pressed()
+
+            while True:
+                keys = pygame.key.get_pressed()
+
+                if keys[pygame.K_UP] and not old_keys[pygame.K_UP]:
                     self.emit('station-up')
-
-            if self.clockwise[3 - self.ccw_step] == (new_a, new_b):
-                self.ccw_step = self.ccw_step + 1
-                if self.ccw_step == 4:
-                    self.cw_step = self.ccw_step = 0
+                if keys[pygame.K_DOWN] and not old_keys[pygame.K_DOWN]:
                     self.emit('station-down')
+                if keys[pygame.K_LEFT] and not old_keys[pygame.K_LEFT]:
+                    self.emit('play-pause')
+                if keys[pygame.K_RIGHT] and not old_keys[pygame.K_RIGHT]:
+                    self.emit('next-song')
+                if keys[pygame.K_q] and not old_keys[pygame.K_q]:
+                    mainloop.quit()
 
-            time.sleep(0.001)
+                old_keys = keys
+
+                time.sleep(0.01)
 
 gobject.type_register(Display)
 gobject.type_register(Controller)
@@ -498,7 +602,7 @@ if __name__ == '__main__':
     controller.connect('station-up', music.tune_station, 1)
     controller.connect('station-down', music.tune_station, -1)
     controller.connect('play-pause', music.play_pause)
-    controller.connect('next-song', music.next_song)
+    controller.connect('next-song', music.skip_song)
     music.connect('station-changed', display.change_station)
     music.connect('song-changed', display.change_song)
     music.connect('state-changed', display.change_state)
