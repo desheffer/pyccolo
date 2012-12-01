@@ -27,6 +27,7 @@ pacman --needed --noconfirm -S \
     gstreamer0.10-base-plugins \
     gstreamer0.10-good-plugins \
     gstreamer0.10-bad-plugins \
+    gstreamer0.10-ugly-plugins \
     alsa-firmware alsa-utils \
     python2-pygame \
     ttf-ubuntu-font-family

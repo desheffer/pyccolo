@@ -36,9 +36,12 @@ except:
     pass
 
 CONF_FILE = '/etc/pyccolo/pyccolo.conf'
-PIN_A = 24
-PIN_B = 25
-PIN_C = 23
+
+PIN_RA = 24
+PIN_RB = 25
+PIN_RC = 23
+PIN_B1 = 17
+PIN_B2 = 22
 
 SCREEN_WIDTH = 320
 SCREEN_HEIGHT = 240
@@ -286,7 +289,7 @@ class Music(gobject.GObject):
 
         # Initialize Pandora.
         self.pandora = pandora.Pandora()
-        self.pandora.set_audio_format('mp3')
+        #self.pandora.set_audio_format('mp3')
 
         # Initialize Gstreamer.
         self.player = gst.element_factory_make('playbin2', 'player')
@@ -307,6 +310,7 @@ class Music(gobject.GObject):
         except:
             print 'Failed to load username and password from configuration file.'
             mainloop.quit()
+            return False
 
         # Try to initiate a connection.
         try:
@@ -315,6 +319,7 @@ class Music(gobject.GObject):
         except:
             print 'Radio connection failed:', sys.exc_info()
             mainloop.quit()
+            return False
 
     def init(self, username, password):
         """Connect to radio and begin playing music."""
@@ -444,6 +449,8 @@ class Music(gobject.GObject):
         self.next_song_timer = None
 
         station = self.station
+        if not station:
+            return False
 
         # Get current station settings.
         playlist = None
@@ -497,7 +504,6 @@ class Music(gobject.GObject):
         self.playing = False
         err, debug = message.parse_error()
         print 'Gstreamer Error: %s, %s, %s' % (err, debug, err.code)
-        self.queue_song()
 
 #   ____            _             _ _
 #  / ___|___  _ __ | |_ _ __ ___ | | | ___ _ __
@@ -525,8 +531,7 @@ class Controller(gobject.GObject):
 
         gobject.GObject.__init__(self)
 
-        self.click_time = None
-        self.clockwise = ((False, True),
+        self.clockwise = ((False, True), #TODO
                           (False, False),
                           (True, False),
                           (True, True))
@@ -539,32 +544,64 @@ class Controller(gobject.GObject):
 
         # Read from GPIO.
         try:
+            print "Trying GPIO input mode..."
+
             GPIO.setmode(GPIO.BCM)
-            GPIO.setup(PIN_A, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-            GPIO.setup(PIN_B, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+            GPIO.setup(PIN_RA, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+            GPIO.setup(PIN_RB, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+            GPIO.setup(PIN_RC, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+            GPIO.setup(PIN_B1, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+            GPIO.setup(PIN_B2, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
             cw_step = ccw_step = 0
+            old_b1 = old_b2 = old_rc = False
 
             while True:
-                new_a = GPIO.input(PIN_A)
-                new_b = GPIO.input(PIN_B)
+                new_ra = not GPIO.input(PIN_RA)
+                new_rb = not GPIO.input(PIN_RB)
+                new_rc = not GPIO.input(PIN_RC)
+                new_b1 = not GPIO.input(PIN_B1)
+                new_b2 = not GPIO.input(PIN_B2)
 
-                if self.clockwise[cw_step] == (new_a, new_b):
+                # Button one.
+                if new_b1 and not old_b1:
+                    self.emit('play-pause')
+                old_b1 = new_b1
+
+                # Button two.
+                if new_b2 and not old_b2:
+                    self.emit('next-song')
+                old_b2 = new_b2
+
+                # Dial clockwise.
+                if self.clockwise[cw_step] == (new_ra, new_rb):
                     cw_step = cw_step + 1
                     if cw_step == 4:
                         cw_step = ccw_step = 0
                         self.emit('station-up')
 
-                if self.clockwise[3 - ccw_step] == (new_a, new_b):
+                # Dial counter-clockwise.
+                if self.clockwise[3 - ccw_step] == (new_ra, new_rb):
                     ccw_step = ccw_step + 1
                     if ccw_step == 4:
                         cw_step = ccw_step = 0
                         self.emit('station-down')
 
+                # Dial click.
+                if new_rc and not old_rc:
+                    if mode == Controller.MODE_STATION:
+                        mode = Controller.MODE_VOLUME
+                    elif mode == Controller.MODE_VOLUME:
+                        mode = Controller.MODE_STATION
+                    self.emit('change-mode', mode)
+                old_rc = new_rc
+
                 time.sleep(0.001)
 
         # Fallback to keyboard mode.
         except:
+            print "Falling back to keyboard input mode."
+
             old_keys = pygame.key.get_pressed()
 
             while True:
