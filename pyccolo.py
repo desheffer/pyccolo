@@ -384,7 +384,7 @@ class Music(gobject.GObject):
             # Trigger next song.
             if self.next_song_timer:
                 self.next_song_timer.cancel()
-            next_song_timer = threading.Timer(0.25, self.queue_song)
+            next_song_timer = threading.Timer(0.5, self.queue_song)
             next_song_timer.start()
 
             # Save the new station into the configuration file.
@@ -415,11 +415,11 @@ class Music(gobject.GObject):
     def play(self):
         """Play the currently paused music track."""
 
-        with self.lock:
-            self.player.set_state(gst.STATE_PLAYING)
-            if not self.playing:
-                self.playing = True
-                self.emit('state-changed', self.playing)
+        #with self.lock:
+        self.player.set_state(gst.STATE_PLAYING)
+        if not self.playing:
+            self.playing = True
+            self.emit('state-changed', self.playing)
 
         return True
 
@@ -497,27 +497,32 @@ class Music(gobject.GObject):
         if not playlist:
             playlist = station.get_playlist()
 
+        changed = False
         with self.lock:
+            self.playlists[station.id] = playlist
+
             if station == self.station:
                 # Play the next song in the playlist.
                 self.song = playlist[0]
                 self.player.set_property('uri', self.song.audioUrl)
-                self.play()
+                changed = True
 
-                # Restore last player position.
-                # TODO
-                #if station.id in self.last_position:
-                #    # Block until the player has changed state.
-                #    self.player.get_state()
+        if changed:
+            #self.play()
+            threading.Thread(target=self.play).start()
 
-                #    self.player.seek_simple(gst.FORMAT_TIME, gst.SEEK_FLAG_FLUSH,
-                #                            self.last_position[station.id])
-                #    del(self.last_position[station.id])
+            self.emit('song-changed', self.song.artist, self.song.album,
+                      self.song.title, self.song.artRadio)
 
-                self.emit('song-changed', self.song.artist, self.song.album,
-                          self.song.title, self.song.artRadio)
+            # Restore last player position.
+            # TODO
+            #if station.id in self.last_position:
+            #    # Block until the player has changed state.
+            #    self.player.get_state()
 
-            self.playlists[station.id] = playlist
+            #    self.player.seek_simple(gst.FORMAT_TIME, gst.SEEK_FLAG_FLUSH,
+            #                            self.last_position[station.id])
+            #    del(self.last_position[station.id])
 
         return True
 

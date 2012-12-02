@@ -23,13 +23,11 @@ pacman --needed --noconfirm -S \
     base-devel \
     python2 \
     wiringpi \
-    gstreamer0.10-python \
-    gstreamer0.10-base-plugins \
-    gstreamer0.10-good-plugins \
-    gstreamer0.10-bad-plugins \
-    gstreamer0.10-ugly-plugins \
-    alsa-firmware alsa-utils \
     python2-pygame \
+    gstreamer0.10-python \
+    gstreamer0.10-plugins \
+    alsa-firmware \
+    alsa-utils \
     ttf-ubuntu-font-family
 
 # Setup configuration file.
