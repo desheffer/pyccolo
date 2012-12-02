@@ -72,6 +72,8 @@ class Display(gobject.GObject):
         self.mode_active = False
         self.mode_timeout_timer = None
 
+        self.lock = threading.RLock()
+
         # Intialize screen.
         pygame.init()
         pygame.mouse.set_visible(False)
@@ -95,11 +97,15 @@ class Display(gobject.GObject):
                 if event.type == pygame.QUIT:
                     mainloop.quit()
 
+            # Get queue status.
+            with self.lock:
+                queue_draw = self.queue_draw
+                self.queue_draw = False
+
             # If nothing has changed then sleep momentarily.
-            if not self.queue_draw:
+            if not queue_draw:
                 time.sleep(0.01)
                 continue
-            self.queue_draw = False
 
             # Fill background
             surface = pygame.Surface(self.screen.get_size())
@@ -115,21 +121,21 @@ class Display(gobject.GObject):
         """Render user interface elements."""
 
         # Handle special modes.
-        if self.mode_active:
-            # Station selection mode.
-            if self.mode == Controller.MODE_STATION:
-                self.draw_text(surface, SCREEN_WIDTH / 2, 20, 'SELECT STATION', 20, align=0)
+        #if self.mode_active:
+        #    # Station selection mode.
+        #    if self.mode == Controller.MODE_STATION:
+        #        self.draw_text(surface, SCREEN_WIDTH / 2, 20, 'SELECT STATION', 20, align=0)
 
-                row_range = (4, -4)
-                row_count = abs(row_range[1] - row_range[0]) + 1
-                row_height = SCREEN_HEIGHT / (row_count + 1)
+        #        row_range = (4, -4)
+        #        row_count = abs(row_range[1] - row_range[0]) + 1
+        #        row_height = SCREEN_HEIGHT / (row_count + 1)
 
-                for num in range(0, len(self.stations)):
-                    station = self.station + row_range[0] + num
-                    if station >= 0 and station < len(self.stations):
-                        self.draw_text(surface, 10, row_height * (num + 1),
-                                       self.stations[station], 14)
-            return
+        #        for num in range(0, len(self.stations)):
+        #            station = self.station + row_range[0] + num
+        #            if station >= 0 and station < len(self.stations):
+        #                self.draw_text(surface, 10, row_height * (num + 1),
+        #                               self.stations[station], 14)
+        #    return
 
         if self.background_img:
             surface.blit(self.background_img, self.background_img.get_rect())
@@ -166,7 +172,6 @@ class Display(gobject.GObject):
 
         font = pygame.font.SysFont(face, size, bold, italic)
         text_surface = font.render(text, 1, (r, g, b))
-
         text_pos = text_surface.get_rect()
 
         # Set horizontal alignment.
@@ -190,7 +195,8 @@ class Display(gobject.GObject):
     def load_art(self):
         """Load album art for the current song."""
 
-        art_url = self.art_url
+        with self.lock:
+            art_url = self.art_url
 
         try:
             # Load album art image.
@@ -204,57 +210,63 @@ class Display(gobject.GObject):
             art_surface = art_surface.convert()
             art_surface.fill((32, 32, 32))
 
-        if self.art_url == art_url:
-            self.art_img = art_surface.convert()
-            self.queue_draw = True
+        with self.lock:
+            if self.art_url == art_url:
+                self.art_img = art_surface.convert()
+                self.queue_draw = True
 
     def change_mode(self, controller, mode):
         """Change the current user interface control mode."""
 
-        self.mode = mode
-        self.mode_active = False
-        self.queue_draw = True
+        with self.lock:
+            self.mode = mode
+            self.mode_active = False
+            self.queue_draw = True
 
     def mode_timeout(self):
         """Disable the current mode."""
 
-        self.mode_timeout_timer = None
-        self.mode_active = False
-        self.queue_draw = True
+        with self.lock:
+            self.mode_timeout_timer = None
+            self.mode_active = False
+            self.queue_draw = True
 
     def change_station(self, music, station, stations):
         """Change the station list that is displayed."""
 
-        self.stations = stations
-        self.station = station
-        self.song = None
-        self.art_url = None
-        self.art_img = None
+        with self.lock:
+            self.stations = stations
+            self.station = station
+            self.song = None
+            self.art_url = None
+            self.art_img = None
 
-        if self.mode == Controller.MODE_STATION:
-            self.mode_active = True
+            if self.mode == Controller.MODE_STATION:
+                self.mode_active = True
 
-            if self.mode_timeout_timer:
-                self.mode_timeout_timer.cancel()
-            self.mode_timeout_timer = threading.Timer(2, self.mode_timeout)
-            self.mode_timeout_timer.start()
+                if self.mode_timeout_timer:
+                    self.mode_timeout_timer.cancel()
+                self.mode_timeout_timer = threading.Timer(2, self.mode_timeout)
+                self.mode_timeout_timer.start()
 
-        self.queue_draw = True
+            self.queue_draw = True
 
     def change_song(self, music, artist, album, track, art_url):
         """Change the song name that is displayed."""
 
-        self.song = (artist, album, track)
-        self.art_url = art_url
-        self.art_img = None
-        threading.Thread(target=self.load_art).start()
-        self.queue_draw = True
+        with self.lock:
+            self.song = (artist, album, track)
+            self.art_url = art_url
+            self.art_img = None
+            threading.Thread(target=self.load_art).start()
+            self.queue_draw = True
 
     def change_state(self, music, state):
         """Change the playing state that is displayed."""
 
-        self.playing = state
-        self.queue_draw = True
+        with self.lock:
+            self.playing = state
+            self.queue_draw = True
 
 #  __  __           _
 # |  \/  |_   _ ___(_) ___
