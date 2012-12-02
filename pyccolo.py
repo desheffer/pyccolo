@@ -59,6 +59,7 @@ class Display(gobject.GObject):
         """Initialize graphical user interface."""
 
         gobject.GObject.__init__(self)
+        self.lock = threading.RLock()
 
         self.queue_draw = True
 
@@ -71,8 +72,6 @@ class Display(gobject.GObject):
         self.mode = None
         self.mode_active = False
         self.mode_timeout_timer = None
-
-        self.lock = threading.RLock()
 
         # Intialize screen.
         pygame.init()
@@ -141,7 +140,7 @@ class Display(gobject.GObject):
             surface.blit(self.background_img, self.background_img.get_rect())
 
         # Display station information.
-        if self.station:
+        if self.station is not None:
             station = self.stations[self.station]
             self.draw_text(surface, SCREEN_WIDTH / 2, 220,
                            'Station: %s' % station, 16, align=0)
@@ -290,6 +289,7 @@ class Music(gobject.GObject):
         """Initialize audio functionality."""
 
         gobject.GObject.__init__(self)
+        self.lock = threading.RLock()
 
         self.station = None
         self.playlists = dict()
@@ -354,54 +354,59 @@ class Music(gobject.GObject):
     def set_station(self, station_id):
         """Set the current station."""
 
-        # Find the new station.
-        new_station = self.pandora.get_station_by_id(station_id)
-        if not new_station:
-            return False
+        with self.lock:
+            # Find the new station.
+            new_station = self.pandora.get_station_by_id(station_id)
+            if not new_station:
+                return False
 
-        # Store player position.
-        if self.station and self.player.get_state()[1] != gst.STATE_NULL:
-            try:
-                position = self.player.query_position(gst.FORMAT_TIME)
-                self.last_position[self.station.id] = position[0]
-            except:
-                pass
+            # Store player position.
+            if self.station and self.player.get_state()[1] != gst.STATE_NULL:
+                try:
+                    position = self.player.query_position(gst.FORMAT_TIME)
+                    self.last_position[self.station.id] = position[0]
+                except:
+                    pass
 
-        self.station = new_station
+            stations = self.pandora.stations
+            self.station = new_station
 
         # Emit the changed signal.
-        stations = []
+        stations_indexed = []
         station_index = None
-        for station in self.pandora.stations:
+        for station in stations:
             if station.id == station_id:
-                station_index = len(stations)
-            stations.append(station.name)
-        self.emit('station-changed', station_index, stations)
+                station_index = len(stations_indexed)
+            stations_indexed.append(station.name)
+        self.emit('station-changed', station_index, stations_indexed)
 
-        # Trigger next song.
-        if self.next_song_timer:
-            self.next_song_timer.cancel()
-        next_song_timer = threading.Timer(0.25, self.queue_song)
-        next_song_timer.start()
+        with self.lock:
+            # Trigger next song.
+            if self.next_song_timer:
+                self.next_song_timer.cancel()
+            next_song_timer = threading.Timer(0.25, self.queue_song)
+            next_song_timer.start()
 
-        # Save the new station into the configuration file.
-        if self.save_timer:
-            self.save_timer.cancel()
-        self.save_timer = threading.Timer(10, self.save_station)
-        self.save_timer.start()
+            # Save the new station into the configuration file.
+            if self.save_timer:
+                self.save_timer.cancel()
+            self.save_timer = threading.Timer(10, self.save_station)
+            self.save_timer.start()
 
         return True
 
     def save_station(self):
         """Save the currently tuned station."""
 
-        self.save_timer = None
+        with self.lock:
+            self.save_timer = None
+            station_id = self.station.id
 
         # Save configuration.
         try:
             if not self.config.has_section('Station'):
                 self.config.add_section('Station')
-            self.config.set('Station', 'station_id', self.station.id)
+            self.config.set('Station', 'station_id', station_id)
             with open(CONF_FILE, 'wb') as config:
                 self.config.write(config)
         except:
@@ -410,45 +415,51 @@ class Music(gobject.GObject):
     def play(self):
         """Play the currently paused music track."""
 
-        self.player.set_state(gst.STATE_PLAYING)
-        if not self.playing:
-            self.playing = True
-            self.emit('state-changed', self.playing)
+        with self.lock:
+            self.player.set_state(gst.STATE_PLAYING)
+            if not self.playing:
+                self.playing = True
+                self.emit('state-changed', self.playing)
 
         return True
 
     def pause(self):
         """Pause the currently playing music track."""
 
-        if self.playing:
-            self.player.set_state(gst.STATE_PAUSED)
-            self.playing = False
-            self.emit('state-changed', self.playing)
+        with self.lock:
+            if self.playing:
+                self.player.set_state(gst.STATE_PAUSED)
+                self.playing = False
+                self.emit('state-changed', self.playing)
+
         return True
 
     def tune_station(self, controller, delta):
         """Change the station in one direction, like a tuning dial."""
 
-        stations = self.pandora.stations
-        if not stations:
-            return False
+        with self.lock:
+            if not self.station or not self.pandora.stations:
+                return False
 
-        # Tune in the direction given.
-        curr = stations.index(self.station) + delta
-        if curr < 0:
-            curr = len(stations) - 1
-        elif curr >= len(stations):
-            curr = 0
+            # Tune in the direction given.
+            curr = self.pandora.stations.index(self.station) + delta
+            if curr < 0:
+                curr = len(self.pandora.stations) - 1
+            elif curr >= len(self.pandora.stations):
+                curr = 0
 
-        return self.set_station(stations[curr].id)
+            new_station_id = self.pandora.stations[curr].id
+
+        return self.set_station(new_station_id)
 
     def play_pause(self, controller):
         """Toggle between playing and paused."""
 
-        if self.playing:
-            self.pause()
-        else:
-            self.play()
+        with self.lock:
+            if self.playing:
+                self.pause()
+            else:
+                self.play()
 
     def skip_song(self, controller=None):
         """Skip the current music track."""
@@ -458,50 +469,55 @@ class Music(gobject.GObject):
     def queue_song(self, skip=False):
         """Queue the next music track."""
 
-        self.next_song_timer = None
+        with self.lock:
+            self.next_song_timer = None
 
-        station = self.station
-        if not station:
-            return False
+            self.player.set_state(gst.STATE_NULL)
 
-        # Get current station settings.
-        playlist = None
-        if station.id in self.playlists:
-            playlist = self.playlists[station.id]
+            station = self.station
+            if not station:
+                return False
+
+            # Get current station settings.
+            playlist = None
+            if station.id in self.playlists:
+                playlist = self.playlists[station.id]
+
+            # Lock playlist.
+            if playlist == True:
+                return False
+            elif not playlist:
+                self.playlists[station.id] = True
 
         # Skip most recent song.
-        if skip and playlist:
+        if playlist and skip:
             playlist.pop(0)
 
-        self.player.set_state(gst.STATE_NULL)
-
         # Fill the playlist.
-        if playlist == True:
-            return False
-        elif not playlist:
-            self.playlists[station.id] = True
+        if not playlist:
             playlist = station.get_playlist()
 
-        # Play the next song in the playlist.
-        if station == self.station:
-            self.song = playlist[0]
-            self.player.set_property('uri', self.song.audioUrl)
+        with self.lock:
+            if station == self.station:
+                # Play the next song in the playlist.
+                self.song = playlist[0]
+                self.player.set_property('uri', self.song.audioUrl)
+                self.play()
 
-            self.play()
+                # Restore last player position.
+                # TODO
+                #if station.id in self.last_position:
+                #    # Block until the player has changed state.
+                #    self.player.get_state()
 
-            # Restore last player position.
-            if station.id in self.last_position:
-                # Block until the player has changed state.
-                self.player.get_state()
+                #    self.player.seek_simple(gst.FORMAT_TIME, gst.SEEK_FLAG_FLUSH,
+                #                            self.last_position[station.id])
+                #    del(self.last_position[station.id])
 
-                self.player.seek_simple(gst.FORMAT_TIME, gst.SEEK_FLAG_FLUSH,
-                                        self.last_position[station.id])
-                del(self.last_position[station.id])
+                self.emit('song-changed', self.song.artist, self.song.album,
+                          self.song.title, self.song.artRadio)
 
-            self.emit('song-changed', self.song.artist, self.song.album,
-                      self.song.title, self.song.artRadio)
-
-        self.playlists[station.id] = playlist
+            self.playlists[station.id] = playlist
 
         return True
 
@@ -513,9 +529,11 @@ class Music(gobject.GObject):
     def on_gst_error(self, bus, message):
         """Report Gstreamer errors."""
 
-        self.playing = False
+        with self.lock:
+            self.playing = False
         err, debug = message.parse_error()
         print 'Gstreamer Error: %s, %s, %s' % (err, debug, err.code)
+        self.queue_song(skip=True)
 
 #   ____            _             _ _
 #  / ___|___  _ __ | |_ _ __ ___ | | | ___ _ __
@@ -538,15 +556,21 @@ class Controller(gobject.GObject):
     MODE_STATION = 1
     MODE_VOLUME = 2
 
+    CLOCKWISE = ((False, False), # Home
+                 (True, False),
+                 (True, True),
+                 (False, True),
+                 (False, False), # Home
+                 (True, False),
+                 (True, True),
+                 (False, True),
+                 (False, False), # Home
+                )
+
     def __init__(self):
         """Setup controller."""
 
         gobject.GObject.__init__(self)
-
-        self.clockwise = ((False, True), #TODO
-                          (False, False),
-                          (True, False),
-                          (True, True))
 
     def run(self, mainloop):
         """Process GPIO knob and button changes in a loop."""
@@ -556,8 +580,6 @@ class Controller(gobject.GObject):
 
         # Read from GPIO.
         try:
-            print "Trying GPIO input mode..."
-
             GPIO.setmode(GPIO.BCM)
             GPIO.setup(PIN_RA, GPIO.IN, pull_up_down=GPIO.PUD_UP)
             GPIO.setup(PIN_RB, GPIO.IN, pull_up_down=GPIO.PUD_UP)
@@ -565,7 +587,9 @@ class Controller(gobject.GObject):
             GPIO.setup(PIN_B1, GPIO.IN, pull_up_down=GPIO.PUD_UP)
             GPIO.setup(PIN_B2, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
-            cw_step = ccw_step = 0
+            dial = 0
+            dial_home = int(len(Controller.CLOCKWISE) / 2)
+
             old_b1 = old_b2 = old_rc = False
 
             while True:
@@ -585,19 +609,18 @@ class Controller(gobject.GObject):
                     self.emit('next-song')
                 old_b2 = new_b2
 
-                # Dial clockwise.
-                if self.clockwise[cw_step] == (new_ra, new_rb):
-                    cw_step = cw_step + 1
-                    if cw_step == 4:
-                        cw_step = ccw_step = 0
-                        self.emit('station-up')
-
-                # Dial counter-clockwise.
-                if self.clockwise[3 - ccw_step] == (new_ra, new_rb):
-                    ccw_step = ccw_step + 1
-                    if ccw_step == 4:
-                        cw_step = ccw_step = 0
+                # Rotational knob.
+                dial_index = dial_home + dial
+                if Controller.CLOCKWISE[dial_index - 1] == (new_ra, new_rb):
+                    dial = dial - 1
+                    if dial <= -3:
                         self.emit('station-down')
+                        dial = 0
+                elif Controller.CLOCKWISE[dial_index + 1] == (new_ra, new_rb):
+                    dial = dial + 1
+                    if dial >= 3:
+                        self.emit('station-up')
+                        dial = 0
 
                 # Dial click.
                 if new_rc and not old_rc:
