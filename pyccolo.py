@@ -384,8 +384,8 @@ class Music(gobject.GObject):
             # Trigger next song.
             if self.next_song_timer:
                 self.next_song_timer.cancel()
-            next_song_timer = threading.Timer(0.5, self.queue_song)
-            next_song_timer.start()
+            self.next_song_timer = threading.Timer(0.5, self.queue_song)
+            self.next_song_timer.start()
 
             # Save the new station into the configuration file.
             if self.save_timer:
@@ -415,11 +415,11 @@ class Music(gobject.GObject):
     def play(self):
         """Play the currently paused music track."""
 
-        #with self.lock:
-        self.player.set_state(gst.STATE_PLAYING)
-        if not self.playing:
-            self.playing = True
-            self.emit('state-changed', self.playing)
+        with self.lock:
+            self.player.set_state(gst.STATE_PLAYING)
+            if not self.playing:
+                self.playing = True
+                self.emit('state-changed', self.playing)
 
         return True
 
@@ -464,7 +464,7 @@ class Music(gobject.GObject):
     def skip_song(self, controller=None):
         """Skip the current music track."""
 
-        self.queue_song(skip=True)
+        threading.Thread(target=self.queue_song, kwargs={'skip': True}).start()
 
     def queue_song(self, skip=False):
         """Queue the next music track."""
@@ -508,11 +508,8 @@ class Music(gobject.GObject):
                 changed = True
 
         if changed:
-            #self.play()
-            threading.Thread(target=self.play).start()
-
-            self.emit('song-changed', self.song.artist, self.song.album,
-                      self.song.title, self.song.artRadio)
+            self.play()
+            #threading.Thread(target=self.play).start()
 
             # Restore last player position.
             # TODO
@@ -524,12 +521,15 @@ class Music(gobject.GObject):
             #                            self.last_position[station.id])
             #    del(self.last_position[station.id])
 
+            self.emit('song-changed', self.song.artist, self.song.album,
+                      self.song.title, self.song.artRadio)
+
         return True
 
     def on_gst_eos(self, bus, message):
         """Begin the next track after the current track has completed."""
 
-        self.queue_song(skip=True)
+        self.skip_song()
 
     def on_gst_error(self, bus, message):
         """Report Gstreamer errors."""
@@ -538,7 +538,7 @@ class Music(gobject.GObject):
             self.playing = False
         err, debug = message.parse_error()
         print 'Gstreamer Error: %s, %s, %s' % (err, debug, err.code)
-        self.queue_song(skip=True)
+        self.skip_song()
 
 #   ____            _             _ _
 #  / ___|___  _ __ | |_ _ __ ___ | | | ___ _ __
