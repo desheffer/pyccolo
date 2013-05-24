@@ -57,7 +57,7 @@ cp -r pandora $INSTALL
 rm -f /boot/config.txt
 cp ./extras/boot__config.txt /boot/config.txt
 
-# Setp RPi.GPIO library.
+# Setup RPi.GPIO library.
 GPIO=RPi.GPIO-0.4.1a
 if [ ! -d $GPIO ]; then
     echo
